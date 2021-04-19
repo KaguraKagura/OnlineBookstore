@@ -94,10 +94,24 @@ def book_search(request):
     if request.method == 'POST':
         form = BookSearchForm(request.POST)
         if form.is_valid():
-            return HttpResponse('good search')
+            # good search
+            return book_search_result(request, form)
         else:
-            messages.error(request, 'Error: the search is empty')
+            # errors
+            messages.error(request, "Error:")
+            for _, error in form.errors.items():
+                messages.error(request, error)
             return render(request, 'book_search.html', context=blank_context)
-
     else:
         return render(request, 'book_search.html', context=blank_context)
+
+
+def book_search_result(request, form=None):
+    if form is not None:
+        data = form.cleaned_data
+        order = data['sort_by']
+        for key, value in data.items():
+            if value == '':
+                data.pop(key)
+        result = Book.objects.filter(**data)
+        context = {'book_results': form}

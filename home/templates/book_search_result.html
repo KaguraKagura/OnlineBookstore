@@ -1,0 +1,16 @@
+{% extends 'base_generic.html' %}
+
+{% block content %}
+    <h1>Search results:</h1>
+    {% if book_results %}
+        <ul>
+            {% for book in book_results %}
+                <li>
+                    <a href="">{{ book.title }}</a> ({{ book.author }})
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Search result is empty.</p>
+    {% endif %}
+{% endblock %}
