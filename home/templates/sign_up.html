@@ -5,7 +5,7 @@
         {% csrf_token %}
         <h3>Please enter information to sign up</h3>
         <table>{{ form.as_table }}</table>
-        <input type="submit" name="Sign up" value="Submit">
+        <input type="submit" name="Sign up" value="Sign up">
         <a href="{% url 'login' %}">or login here</a>
     </form>
 {% endblock %}

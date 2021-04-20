@@ -3,3 +3,13 @@
     padding: 0;
     list-style: none;
 }
+
+ul.no-bullets {
+    list-style-type: none;
+    padding: 0;
+}
+
+.comment_text_box {
+    height: 200px;
+    size: 300px;
+}

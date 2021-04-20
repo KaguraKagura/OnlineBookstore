@@ -1,0 +1,76 @@
+{% extends "base_generic.html" %}
+
+
+{% block content %}
+    <style>
+        .hide {
+            display: none;
+        }
+    </style>
+
+    <script type="text/javascript">
+        function onAddToShoppingCartButtonClick() {
+            location.href = '{% url 'shopping_cart' %}';
+        }
+
+        function onWriteCommentButtonClick() {
+            let to_show = [
+                'comment_text_box_label',
+                'comment_text_box',
+                'submit_comment_button'
+            ]
+            to_show.forEach(function (element) {
+                document.getElementById(element).className = 'show';
+            })
+        }
+
+        function onSubmitCommentButtonClick() {
+            let comment_text = document.getElementById('comment_text_box').value;
+            window.alert("ggg");
+            document.post(comment_text);
+        }
+    </script>
+
+    {% if book %}
+        <h1>Title: {{ book.title }}</h1>
+
+        <li>
+            <strong>Author(s):</strong> <br>
+            {% for author in authors %}
+                {{ author.first_name }} {{ author.last_name }} <br>
+            {% endfor %}
+        </li>
+        {% for key, value in book_dict.items %}
+            {% if key == "price" %}
+                <li><strong>{{ key }}</strong>: ${{ value }}</li>
+            {% else %}
+                <li><strong>{{ key }}</strong>: {{ value }}</li>
+            {% endif %}
+        {% endfor %}
+        <div style="margin-top:20px">
+            <input type="button" onclick=onAddToShoppingCartButtonClick() value="Add to shopping cart">
+            <input type="button" onclick=onWriteCommentButtonClick() value="Write a comment">
+            <br>
+            <label class="hide" for="comment_text_box" id="comment_text_box_label">Enter your comment: </label>
+            <input class="hide" type="text" id="comment_text_box" size="100">
+            <input class="hide" type="button" id="submit_comment_button" onclick=onSubmitCommentButtonClick()
+                   value="Submit comment">
+            {% for comment in comments %}
+                <hr>
+                <strong>Commented by:</strong> {{ comment.username }} <strong>on</strong> {{ comment.time }}
+                <p><strong>Score:</strong> {{ comment.score }}</p>
+                <p><strong>Comment:</strong> {{ comment.comment_text }}</p>
+                <p><strong>Rate this comment:</strong>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name='comment_id' value="{{ comment.id }}">
+                    <input type="submit" name='very_useful' value="very useful: {{ comment.very_useful_count }}">
+                    <input type="submit" name='useful' value="useful: {{ comment.useful_count }}">
+                    <input type="submit" name='useless' value="useless: {{ comment.useless_count }}">
+                </form>
+            {% endfor %}
+        </div>
+    {% else %}
+        <h1>Bad ISBN!</h1>
+    {% endif %}
+{% endblock %}

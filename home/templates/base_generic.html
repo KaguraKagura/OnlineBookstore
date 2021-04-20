@@ -12,13 +12,16 @@
 </head>
 <body>
 <div class="container-fluid">
-    {{ login_status }}
+    {% if user.is_authenticated %}
+        You are logged in as <a href="{% url 'my_account' %}">{{ user }}</a>
+    {% endif %}
     <div class="row">
         <div class="col-sm-2">
             {% block sidebar %}
                 <ul class="sidebar-nav">
                     <li><a href="{% url 'home' %}">Home</a></li>
                     <li><a href="{% url 'book_search' %}">Book Search</a></li>
+                    <li><a href="{% url 'shopping_cart' %}">Shopping Cart</a></li>
                     <li><a href="{% url 'my_account' %}">My Account</a></li>
                     <li><a href="{% url 'login' %}">Login/Sign up</a></li>
                     <li><a href="{% url 'logout' %}">Logout</a></li>
@@ -31,7 +34,11 @@
                     <b>{{ message }}</b>
                 {% endfor %}
             {% endif %}
-            {% block content %}{% endblock %}</div>
+            {% block content %}
+                {% load static %}
+                <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+            {% endblock %}
+        </div>
     </div>
 </div>
 </body>
