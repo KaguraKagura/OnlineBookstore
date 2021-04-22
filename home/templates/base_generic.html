@@ -8,12 +8,12 @@
           integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
     <!-- Add additional CSS in static file -->
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'home/styles.css' %}">
 </head>
 <body>
 <div class="container-fluid">
     {% if user.is_authenticated %}
-        You are logged in as <a href="{% url 'my_account' %}">{{ user }}</a>
+        You are logged in as <strong><a href="{% url 'my_account' %}">{{ user }}</a></strong>
     {% endif %}
     <div class="row">
         <div class="col-sm-2">
@@ -29,14 +29,16 @@
             {% endblock %}
         </div>
         <div class="col-sm-10 ">
-            {% if messages %}
-                {% for message in messages %}
-                    <b>{{ message }}</b>
-                {% endfor %}
-            {% endif %}
+            <div style="background-color: yellow">
+                {% if messages %}
+                    {% for message in messages %}
+                        <b>{{ message }}</b>
+                    {% endfor %}
+                {% endif %}
+            </div>
             {% block content %}
                 {% load static %}
-                <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+                <link rel="stylesheet" href="{% static 'home/styles.css' %}">
             {% endblock %}
         </div>
     </div>

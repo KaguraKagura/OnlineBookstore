@@ -1,5 +1,104 @@
 {% extends "base_generic.html" %}
+{% load range %}
+
 
 {% block content %}
-    <h1>Shopping Cart</h1>
+    <script type="text/javascript">
+
+        // create a form and add csrf
+        function prepareForm() {
+            let form = document.createElement('form');
+            form.method = 'post';
+            let csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = 'csrfmiddlewaretoken';
+            csrf.value = '{{ csrf_token }}'
+            form.appendChild(csrf);
+            return form;
+        }
+
+        function createQuantityActionField(action) {
+            let quantityAction = document.createElement('input');
+            quantityAction.type = 'hidden';
+            quantityAction.name = 'quantity_action'
+            quantityAction.value = action;
+            return quantityAction;
+        }
+
+        function onDecreaseCountButtonClicked(clickedISBN) {
+            function decreaseCount() {
+                let form = prepareForm();
+                let isbn = document.createElement('input');
+                isbn.type = 'hidden';
+                isbn.name = 'isbn';
+                isbn.value = clickedISBN;
+                form.appendChild(isbn);
+                form.appendChild(createQuantityActionField('decrease'));
+                document.body.appendChild(form);
+                form.submit();
+            }
+
+            if (parseInt(document.getElementById(clickedISBN).innerHTML) === 1) {
+                if (confirm("Do you want to remove this item?")) {
+                    decreaseCount();
+                } else { // Answer is no, do nothing
+
+                }
+            } else {
+                decreaseCount();
+            }
+        }
+
+        function onIncreaseCountButtonClicked(clickedISBN) {
+            let form = prepareForm();
+            let isbn = document.createElement('input');
+            isbn.type = 'hidden';
+            isbn.name = 'isbn';
+            isbn.value = clickedISBN;
+            form.appendChild(isbn);
+            form.appendChild(createQuantityActionField('increase'));
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function onCheckoutButtonClicked() {
+            let form = prepareForm();
+            let checkout = document.createElement('input');
+            checkout.type = 'hidden';
+            checkout.name = 'check_out';
+            form.appendChild(checkout);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+    </script>
+
+
+
+    <h1>My Shopping Cart</h1>
+    {% if not books_in_shopping_cart %}
+        <br>
+        Your cart is empty, go to <a href="{% url 'book_search' %}">Book Search</a> to explore books!
+    {% else %}
+        {% for book in books_in_shopping_cart %}
+            <hr>
+            <strong>Title:</strong> {{ book.title }}&emsp;
+            <strong>ISBN:</strong> {{ book.isbn }}&emsp;
+            <br>
+            <strong>Unit Price:</strong> ${{ book.price }}&emsp;
+            <strong>Quantity:</strong> <span id="{{ book.isbn }}">{{ book.count }}</span>&emsp;
+            <strong>Adjust Quantity:</strong>
+            <input class="quantity_button" type="button" onclick="onDecreaseCountButtonClicked('{{ book.isbn }}')"
+                   value="-">
+            <input class="quantity_button" type="button" onclick="onIncreaseCountButtonClicked('{{ book.isbn }}')"
+                   value='+'>
+        {% endfor %}
+        <hr>
+        <hr>
+        <br>
+        <strong>Total Price:</strong> ${{ total_price }}
+        <br><br>
+        <input type="button" name="checkout" id="checkout_button" onclick="onCheckoutButtonClicked()" value="Checkout">
+    {% endif %}
+
 {% endblock %}

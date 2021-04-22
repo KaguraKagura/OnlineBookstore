@@ -1,23 +1,19 @@
 {% extends "base_generic.html" %}
+{% load range %}
 
 
 {% block content %}
-    <style>
-        .hide {
-            display: none;
-        }
-    </style>
-
     <script type="text/javascript">
         function onAddToShoppingCartButtonClick() {
-            location.href = '{% url 'shopping_cart' %}';
+            document.getElementById('add_to_cart_form').submit();
         }
 
         function onWriteCommentButtonClick() {
             let to_show = [
-                'comment_text_box_label',
-                'comment_text_box',
-                'submit_comment_button'
+                'comment_textarea_label',
+                'comment_textarea',
+                'submit_comment_button',
+                'scores_select',
             ]
             to_show.forEach(function (element) {
                 document.getElementById(element).className = 'show';
@@ -25,9 +21,11 @@
         }
 
         function onSubmitCommentButtonClick() {
-            let comment_text = document.getElementById('comment_text_box').value;
-            window.alert("ggg");
-            document.post(comment_text);
+            if (document.getElementById('comment_textarea').value === '') {
+                window.alert("Comment text cannot be empty");
+                return;
+            }
+            document.getElementById('comment_text_form').submit();
         }
     </script>
 
@@ -35,9 +33,11 @@
         <h1>Title: {{ book.title }}</h1>
 
         <li>
-            <strong>Author(s):</strong> <br>
+            <strong>Author(s):</strong>
+            <br>
             {% for author in authors %}
-                {{ author.first_name }} {{ author.last_name }} <br>
+                {{ author.first_name }} {{ author.last_name }}
+                <br>
             {% endfor %}
         </li>
         {% for key, value in book_dict.items %}
@@ -48,27 +48,54 @@
             {% endif %}
         {% endfor %}
         <div style="margin-top:20px">
-            <input type="button" onclick=onAddToShoppingCartButtonClick() value="Add to shopping cart">
-            <input type="button" onclick=onWriteCommentButtonClick() value="Write a comment">
-            <br>
-            <label class="hide" for="comment_text_box" id="comment_text_box_label">Enter your comment: </label>
-            <input class="hide" type="text" id="comment_text_box" size="100">
-            <input class="hide" type="button" id="submit_comment_button" onclick=onSubmitCommentButtonClick()
-                   value="Submit comment">
+            {% if not user.is_authenticated %}
+                Please login/sign up to buy the book or write a comment
+            {% else %}
+                <form method="post" id="add_to_cart_form">
+                    {% csrf_token %}
+                    <input type="hidden" name="add_to_shopping_cart" value="">
+                </form>
+                <input type="button" onclick=onAddToShoppingCartButtonClick() value="Add to shopping cart">
+                <input type="button" onclick=onWriteCommentButtonClick() value="Write a comment">
+                <br>
+                <form method="post" id="comment_text_form">
+                    {% csrf_token %}
+                    <label class="hide" for="comment_textarea" id="comment_textarea_label">
+                        Enter your score and comment:
+                    </label>
+                    <br>
+                    <select class="hide" name="scores" id="scores_select">
+                        {% for i in 1|range:11 %}
+                            <option value={{ i }}>{{ i }}</option>
+                        {% endfor %}
+                    </select>
+                    <br>
+                    <textarea class="hide"  name="comment_textarea" id="comment_textarea" rows="5" cols="70"></textarea>
+                    <br>
+                    <input class="hide" type="button" id="submit_comment_button" onclick=onSubmitCommentButtonClick()
+                           value="Submit comment">
+                </form>
+            {% endif %}
             {% for comment in comments %}
                 <hr>
                 <strong>Commented by:</strong> {{ comment.username }} <strong>on</strong> {{ comment.time }}
                 <p><strong>Score:</strong> {{ comment.score }}</p>
                 <p><strong>Comment:</strong> {{ comment.comment_text }}</p>
-                <p><strong>Rate this comment:</strong>
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name='comment_id' value="{{ comment.id }}">
-                    <input type="submit" name='very_useful' value="very useful: {{ comment.very_useful_count }}">
-                    <input type="submit" name='useful' value="useful: {{ comment.useful_count }}">
-                    <input type="submit" name='useless' value="useless: {{ comment.useless_count }}">
-                </form>
+                <p><strong>Rate this comment:</strong></p>
+                {% if not user.is_authenticated %}
+                    Please login/sign up to rate comment
+                {% else %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name='comment_id' value="{{ comment.id }}">
+                        <input type="submit" name='very_useful'
+                               value="very useful: {{ comment.very_useful_count }}">
+                        <input type="submit" name='useful' value="useful: {{ comment.useful_count }}">
+                        <input type="submit" name='useless' value="useless: {{ comment.useless_count }}">
+                    </form>
+                {% endif %}
             {% endfor %}
+
         </div>
     {% else %}
         <h1>Bad ISBN!</h1>

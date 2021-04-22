@@ -1,9 +1,10 @@
-from django.shortcuts import render, HttpResponse
+from django.shortcuts import render, HttpResponse, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import Http404
-from django.db.models import Avg
+from django.db.models import F, Sum
 from django.forms.models import model_to_dict
+from django.utils.safestring import mark_safe
 from django.views import generic
 from django.views.generic import RedirectView
 from django.template import RequestContext
@@ -16,27 +17,24 @@ from .models import *
 
 # Create your views here.
 
-class BookSearchResultView(generic.ListView):
-    model = Book
-
-    # def get_queryset(self):
-    # request = self.request
-    # blank_form = BookSearchForm()
-    # blank_context = {'form': blank_form}
-    #
-    # if request.method == 'POST':
-    #     form = BookSearchForm(request.POST)
-    #     if form.is_valid():
-    #         # good search
-    #         return book_search_result(request, form)
-    #     else:
-    #         # errors
-    #         messages.error(request, "Error:")
-    #         for _, error in form.errors.items():
-    #             messages.error(request, error)
-    #         return render(request, 'book_search.html', context=blank_context)
-    # else:
-    #     return render(request, 'book_search.html', context=blank_context)
+# def get_queryset(self):
+# request = self.request
+# blank_form = BookSearchForm()
+# blank_context = {'form': blank_form}
+#
+# if request.method == 'POST':
+#     form = BookSearchForm(request.POST)
+#     if form.is_valid():
+#         # good search
+#         return book_search_result(request, form)
+#     else:
+#         # errors
+#         messages.error(request, "Error:")
+#         for _, error in form.errors.items():
+#             messages.error(request, error)
+#         return render(request, 'book_search.html', context=blank_context)
+# else:
+#     return render(request, 'book_search.html', context=blank_context)
 
 
 def index(request):
@@ -51,7 +49,63 @@ def my_account(request):
 
 @login_required(login_url='login')
 def shopping_cart(request):
-    return render(request, 'shopping_cart.html')
+    current_customer = Customer.objects.get(username=request.user.username)
+    if request.method == 'POST':
+        if 'quantity_action' in request.POST:
+            action = request.POST.get('quantity_action')
+            isbn = request.POST.get('isbn')
+            book_in_cart = ShoppingCart.objects.get(username=current_customer, isbn=isbn)
+            if action == 'decrease':
+                if book_in_cart.count == 1:
+                    book_in_cart.delete()
+                else:
+                    book_in_cart.count -= 1
+                    book_in_cart.save()
+            elif action == 'increase':
+                book_in_cart.count += 1
+                book_in_cart.save()
+            return render_shopping_cart(request)
+        elif 'check_out' in request.POST:
+            # buy stuff
+            books_in_shopping_cart = ShoppingCart.objects.filter(
+                username=current_customer).values(
+                'isbn', 'count', title=F('isbn__title'), price=F('isbn__price'), stock=F('isbn__stock_level'))
+            has_invalid_count = False
+            for book in books_in_shopping_cart:
+                if book['count'] > book['stock']:
+                    has_invalid_count = True
+                    messages.error(request, mark_safe(
+                        f'Unable to checkout:<br>&emsp;'
+                        f'Book "{book["title"]}" has only {book["stock"]} in stock, '
+                        f'please adjust the quantity<br>'))
+            if has_invalid_count is True:
+                return render_shopping_cart(request)
+            else:
+                pass
+            # count = BookOrder.objects.filter(isbn=isbn).values('isbn').annotate(sum_count=Sum('count'))
+            # if count.exists():
+            # print(count.values('sum_count'))
+
+
+    else:
+        return render_shopping_cart(request)
+
+
+# helper
+def render_shopping_cart(request):
+    current_customer = Customer.objects.get(username=request.user.username)
+    books_in_shopping_cart = ShoppingCart.objects.filter(
+        username=current_customer).values(
+        'isbn', 'count', title=F('isbn__title'), price=F('isbn__price'))
+    context = {
+        'books_in_shopping_cart': books_in_shopping_cart,
+        'total_price': 0,
+    }
+    if books_in_shopping_cart.exists():
+        for book in books_in_shopping_cart:
+            context['total_price'] += book['price'] * book['count']
+    return render(request, 'shopping_cart.html', context=context)
+
 
 # def login(request):
 #     if request.method == 'POST':
@@ -86,7 +140,7 @@ def sign_up(request):
             try:
                 Customer.objects.get(username=form.cleaned_data['username'])
                 # username already exists
-                messages.info(request, 'User name is already taken, please choose another one')
+                messages.info(request, 'User name is already taken, please choose another one<br>')
                 return render(request, 'sign_up.html', context=blank_context)
             except Customer.DoesNotExist:
                 # good username, can register
@@ -103,15 +157,10 @@ def sign_up(request):
                 context = {'status': 'Signed up successfully!'}
                 return render(request, 'profile.html', context=context)
         else:
-            messages.error(request, 'Error: Unknown error, please refresh the page')
+            messages.error(request, 'Error: Unknown error, please refresh the page<br>')
             return render(request, 'sign_up.html', context=blank_context)
     else:
         return render(request, 'sign_up.html', context=blank_context)
-
-
-# def show_error(request, description, previous_page):
-#     context = {'description': description, 'link': previous_page}
-#     return render(request, 'show_error.html', context=context)
 
 
 def book_search(request):
@@ -145,8 +194,8 @@ def book_search_result(request, form):
             to_pop.append(key)
     [data.pop(key) for key in to_pop]
 
+    context = {'order_by': order_by}
     if order_by != '':
-        messages.info(request, f"The result is sorted by {order_by}")
         if order_by == form.SORT_CHOICE['publication_date']:
             result = Book.objects.filter(**data).order_by('publication_date')
         elif order_by == form.SORT_CHOICE['score']:
@@ -176,10 +225,12 @@ def book_search_result(request, form):
                 #                           'ORDER BY AVG(score)', [1], **data)
                 return HttpResponse("NOT COMPLETED")
             else:
-                messages.info(request,
-                              f'You are not logged in, you cannot Sort by "{form.SORT_CHOICE["trusted_score"]}"')
-                context = {'form': BookSearchForm()}
-                return render(request, 'book_search.html', context=context)
+                # not logged in cannot sort by trusted customer
+                messages.info(request, mark_safe(
+                    f'You are not logged in, thus you cannot Sort by "{form.SORT_CHOICE["trusted_score"]}"<br>'))
+                context.pop('order_by')
+                context['form'] = BookSearchForm()
+            return render(request, 'book_search.html', context=context)
         else:
             return HttpResponse("Error")
     else:
@@ -190,37 +241,73 @@ def book_search_result(request, form):
 
 def book_detail(request, isbn_str):
     if request.method == 'POST':
-        comment = Comment.objects.get(id=request.POST.get('comment_id'))
-        if 'very_useful' in request.POST:
-            comment.very_useful_count += 1
-        elif 'useful' in request.POST:
-            comment.useful_count += 1
-        elif 'useless' in request.POST:
-            comment.useless_count += 1
-        comment.save()
-        try:
-            authors = Author.objects.filter(isbn=isbn_str)
-            book = Book.objects.get(isbn=isbn_str)
-            comments = Comment.objects.filter(isbn=isbn_str)
-        except Book.DoesNotExist:
-            raise Http404('ISBN does not exist')
-        context = {'book': book,
-                   'comments': comments,
-                   'authors': authors,
-                   'book_dict': model_to_dict(book),
-                   }
-        return render(request, 'book_detail.html', context=context)
+        if request.user.is_authenticated:
+            current_customer = Customer.objects.get(username=request.user.username)
+            # Add to shopping cart clicked
+            if 'add_to_shopping_cart' in request.POST:
+                try:
+                    # book added before, increase the count by 1
+                    book_in_cart = ShoppingCart.objects.get(username=current_customer,
+                                                            isbn=isbn_str)
+                    book_in_cart.count += 1
+                    book_in_cart.save()
+                    return redirect(shopping_cart)
+                except ShoppingCart.DoesNotExist:
+                    # book first time added, count is 1
+                    shopping_cart_item = ShoppingCart.objects.create(username=current_customer,
+                                                                     isbn=Book.objects.get(isbn=isbn_str),
+                                                                     count=1)
+                    shopping_cart_item.save()
+                    return redirect(shopping_cart)
+            # Submit comment clicked
+            elif 'comment_textarea' in request.POST:
+                if current_customer.banned is True:
+                    messages.error(request, "You are banned and cannot write a commented<br>")
+                    return render_book_detail(request, isbn_str)
+                try:
+                    # current user already commented
+                    Comment.objects.get(username=current_customer, isbn=isbn_str)
+                    messages.error(request,
+                                   "One comment per user per book -- You have already commented on this book<br>")
+                    return render_book_detail(request, isbn_str)
+                except Comment.DoesNotExist:
+                    # current user has never commented
+                    new_comment = Comment.objects.create(username=current_customer,
+                                                         isbn=Book.objects.get(isbn=isbn_str),
+                                                         score=request.POST.get('scores'),
+                                                         comment_text=request.POST.get('comment_textarea'))
+                    new_comment.save()
+                    return render_book_detail(request, isbn_str)
+        else:
+            try:
+                # rated a existing comment
+                comment = Comment.objects.get(id=request.POST.get('comment_id'))
+                if 'very_useful' in request.POST:
+                    comment.very_useful_count += 1
+                elif 'useful' in request.POST:
+                    comment.useful_count += 1
+                elif 'useless' in request.POST:
+                    comment.useless_count += 1
+                comment.save()
+                return render_book_detail(request, isbn_str)
+            except Comment.DoesNotExist:
+                return HttpResponse(f'Unknown error in {book_detail.__name__}, please refresh and try again')
     else:
-        try:
-            authors = Author.objects.filter(isbn=isbn_str)
-            book = Book.objects.get(isbn=isbn_str)
-            comments = Comment.objects.filter(isbn=isbn_str)
-        except Book.DoesNotExist:
-            raise Http404('ISBN does not exist')
-        context = {'book': book,
-                   'comments': comments,
-                   'authors': authors,
-                   'book_dict': model_to_dict(book),
-                   }
-        print(model_to_dict(book))
-        return render(request, 'book_detail.html', context=context)
+        return render_book_detail(request, isbn_str)
+
+
+# helper
+def render_book_detail(request, isbn_str):
+    try:
+        authors = Author.objects.filter(isbn=isbn_str)
+        book = Book.objects.get(isbn=isbn_str)
+        comments = Comment.objects.filter(isbn=isbn_str)
+    except Book.DoesNotExist:
+        raise Http404('ISBN does not exist')
+
+    context = {'book': book,
+               'comments': comments,
+               'authors': authors,
+               'book_dict': model_to_dict(book),
+               }
+    return render(request, 'book_detail.html', context=context)

@@ -20,7 +20,7 @@ class Book(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[v.MinValueValidator(0)])
 
     def __str__(self):
-        return f'title:{self.title}\nisbn:{self.isbn}'
+        return f'Title:{self.title} ISBN:{self.isbn}'
 
 
 class Author(models.Model):
@@ -32,7 +32,7 @@ class Author(models.Model):
         constraints = [models.UniqueConstraint(fields=['isbn', 'first_name', 'last_name'], name='unique record')]
 
     def __str__(self):
-        return f'isbn:{self.isbn}\nname:{self.first_name} {self.last_name}'
+        return f'ISBN:{self.isbn} Name:{self.first_name} {self.last_name}'
 
 
 class Customer(User):
@@ -48,7 +48,6 @@ class BookOrder(models.Model):
     order_number = models.AutoField(primary_key=True)
     username = models.ForeignKey(Customer, on_delete=models.RESTRICT)
     isbn = models.ForeignKey(Book, on_delete=models.RESTRICT)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[v.MinValueValidator(0)])
     count = models.IntegerField(validators=[v.MinValueValidator(1)])
     order_time = models.DateTimeField(auto_now_add=True)
 
@@ -58,6 +57,20 @@ class BookOrder(models.Model):
 
     def __str__(self):
         return f'order number:{self.order_time}'
+
+
+class ShoppingCart(models.Model):
+    username = models.ForeignKey(Customer, on_delete=models.RESTRICT)
+    isbn = models.ForeignKey(Book, on_delete=models.RESTRICT)
+    count = models.IntegerField(validators=[v.MinValueValidator(1)])
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['username', 'isbn'], name='unique item in cart')
+        ]
+
+    def __str__(self):
+        return f'Username: {self.username} ISBN: {self.isbn} Count: {self.count}'
 
 
 class Comment(models.Model):
