@@ -1,0 +1,12 @@
+{% extends 'base_generic.html' %}
+
+{% block content %}
+    <h1>My Account</h1>
+    <ul>
+        <li><strong>Username: </strong>{{ customer.username }}</li>
+        <li><strong>Name: </strong>{{ customer.first_name }} {{ customer.last_name }}</li>
+        <li><strong>Address: </strong>{{ customer.address }}</li>
+        <li><strong>Phone Number: </strong>{{ customer.phone_number }}</li>
+        <li><strong>Customer since: </strong>{{ customer.date_joined.date }}</li>
+    </ul>
+{% endblock %}

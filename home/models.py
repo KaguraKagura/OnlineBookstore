@@ -47,16 +47,20 @@ class Customer(User):
 class BookOrder(models.Model):
     order_number = models.AutoField(primary_key=True)
     username = models.ForeignKey(Customer, on_delete=models.RESTRICT)
-    isbn = models.ForeignKey(Book, on_delete=models.RESTRICT)
-    count = models.IntegerField(validators=[v.MinValueValidator(1)])
     order_time = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['order_number', 'username', 'isbn'], name='unique item in order')]
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f'order number:{self.order_time}'
+        return f'order number:{self.order_time} order_time:{self.order_time}'
+
+
+class BookInOrder(models.Model):
+    order_number = models.ForeignKey(BookOrder, on_delete=models.RESTRICT)
+    isbn = models.ForeignKey(Book, on_delete=models.RESTRICT)
+    count = models.IntegerField(validators=[v.MinValueValidator(1)])
+
+    def __str__(self):
+        return f'order number:{self.order_number} ISBN:{self.isbn} count:{self.count}'
 
 
 class ShoppingCart(models.Model):
@@ -107,9 +111,8 @@ class Question(models.Model):
     question_id = models.AutoField(primary_key=True)
     username = models.ForeignKey(Customer, on_delete=models.RESTRICT)
     time_asked = models.DateTimeField(auto_now_add=True)
-    time_answered = models.DateTimeField(auto_now=True)
     question = models.TextField(max_length=300)
-    answer = models.TextField(max_length=300)
+    answer = models.TextField(max_length=300, default='THIS QUESTION HAS NOT BEEN ANSWERED, PLEASE CHECK BACK LATER')
 
     def __str__(self):
         return f'question id:{self.question_id}'

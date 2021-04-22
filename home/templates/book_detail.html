@@ -70,31 +70,35 @@
                         {% endfor %}
                     </select>
                     <br>
-                    <textarea class="hide"  name="comment_textarea" id="comment_textarea" rows="5" cols="70"></textarea>
+                    <textarea class="hide" name="comment_textarea" id="comment_textarea" rows="5" cols="70"></textarea>
                     <br>
                     <input class="hide" type="button" id="submit_comment_button" onclick=onSubmitCommentButtonClick()
                            value="Submit comment">
                 </form>
             {% endif %}
-            {% for comment in comments %}
-                <hr>
-                <strong>Commented by:</strong> {{ comment.username }} <strong>on</strong> {{ comment.time }}
-                <p><strong>Score:</strong> {{ comment.score }}</p>
-                <p><strong>Comment:</strong> {{ comment.comment_text }}</p>
-                <p><strong>Rate this comment:</strong></p>
-                {% if not user.is_authenticated %}
-                    Please login/sign up to rate comment
-                {% else %}
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name='comment_id' value="{{ comment.id }}">
-                        <input type="submit" name='very_useful'
-                               value="very useful: {{ comment.very_useful_count }}">
-                        <input type="submit" name='useful' value="useful: {{ comment.useful_count }}">
-                        <input type="submit" name='useless' value="useless: {{ comment.useless_count }}">
-                    </form>
-                {% endif %}
-            {% endfor %}
+            {% if not comments %}
+                Currently there are no comments on this book. You could be the first!
+            {% else %}
+                {% for comment in comments %}
+                    <hr>
+                    <strong>Commented by:</strong> {{ comment.username }} <strong>on</strong> {{ comment.time }}
+                    <p><strong>Score:</strong> {{ comment.score }}</p>
+                    <p><strong>Comment:</strong> {{ comment.comment_text }}</p>
+                    <p><strong>Rate this comment:</strong></p>
+                    {% if not user.is_authenticated %}
+                        Please login/sign up to rate comment
+                    {% else %}
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name='comment_id' value="{{ comment.id }}">
+                            <input type="submit" name='very_useful'
+                                   value="very useful: {{ comment.very_useful_count }}">
+                            <input type="submit" name='useful' value="useful: {{ comment.useful_count }}">
+                            <input type="submit" name='useless' value="useless: {{ comment.useless_count }}">
+                        </form>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
 
         </div>
     {% else %}

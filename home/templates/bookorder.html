@@ -1,0 +1,33 @@
+{% extends 'base_generic.html' %}
+
+{% block content %}
+    <script type="text/javascript">
+
+    </script>
+    {{ status }}
+    <h1>My Orders</h1>
+    {% if orders %}
+        <hr>
+        <hr>
+        {% for order in orders %}
+            <strong>Order number: </strong>{{ order.order_number }}
+            <br>
+            <strong>Order time: </strong>{{ order.order_time }}
+            <br>
+            <strong>Books in the order: </strong>
+            <br>
+            {% for book in order.book_in_order %}
+                <strong>Title: </strong>{{ book.0.title }}
+                <strong>ISBN: </strong>{{ book.0.isbn }}
+                <strong>Quantity: </strong>{{ book.1 }}
+                <br>
+            {% endfor %}
+            <strong>Total price: </strong>${{ order.total_price }}
+            <br>
+            <hr>
+        {% endfor %}
+        <br>
+    {% else %}
+        <p>You don't have any orders.</p>
+    {% endif %}
+{% endblock %}

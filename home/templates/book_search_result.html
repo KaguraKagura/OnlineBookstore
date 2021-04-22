@@ -2,13 +2,21 @@
 
 {% block content %}
     <h1>Search results:</h1>
+    {% if order_by %}
+        The search result is sorted by <strong>{{ order_by }}:</strong>
+        <br>
+    {% endif %}
+    <br>
     {% if book_results %}
         <ul>
-            {% for book in book_results %}
-                <li>
-                    <a href="{% url 'book_detail' book.isbn %}">{{ book.title }}</a> ({{ book.author }})
-                </li>
-            {% endfor %}
+            <li>
+                {% for book in book_results %}
+                    <a href="{% url 'book_detail' book.isbn %}">
+                        {{ book.title }}&emsp;{{ book.isbn }}&emsp;{{ book.publisher }}&emsp;${{ book.price }}
+                    </a>
+
+                {% endfor %}
+            </li>
         </ul>
     {% else %}
         <p>Search result is empty.</p>

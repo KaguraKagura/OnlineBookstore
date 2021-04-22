@@ -1,7 +1,9 @@
 from django.shortcuts import render, HttpResponse, redirect
+from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import Http404
+from django.db import transaction
 from django.db.models import F, Sum
 from django.forms.models import model_to_dict
 from django.utils.safestring import mark_safe
@@ -38,13 +40,54 @@ from .models import *
 
 
 def index(request):
-    return render(request, 'index.html')
+    most_purchased_books = Book.objects.values('isbn', 'title', 'price').distinct() \
+        .annotate(total_quantity=Sum('bookinorder__count')).order_by('-total_quantity')
+    recommended_books = Book.objects.all().values('isbn', 'title', 'price')[:10]
+    context = {'most_purchased_books': most_purchased_books,
+               'recommended_books': recommended_books}
+    return render(request, 'index.html', context=context)
+
+
+@method_decorator(login_required(login_url='login'), name='dispatch')
+class MyAccountView(generic.TemplateView):
+    template_name = 'my_account.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(MyAccountView, self).get_context_data(**kwargs)
+        context['customer'] = Customer.objects.get(username=self.request.user.username)
+        return context
+
+
+# @method_decorator(login_required(login_url='login'), name='dispatch')
+# class OrderListView(generic.ListView):
+#     model = BookOrder
+#
+#     def get_queryset(self):
+#         # orders = BookOrder.objects.filter(username=Customer.objects.get(username=self.request.user.username))
+#         # print(orders)
+#         # for order in orders:
+#         #     books_in_order = BookInOrder.objects.filter(order_number=order)
+#         #     print(books_in_order)
+#         #     order['isbn'] = [book.isbn for book in books_in_order]
+#         #     order['count'] = [book.count for book in books_in_order]
+#         # return orders
+#         return BookOrder.objects.filter(username=Customer.objects.get(username=self.request.user.username)) \
+#             .values('order_number', 'order_time', isbn=F('bookinorder__isbn'), title=F('bookinorder__isbn__title'),
+#                     count=F('bookinorder__count'))
 
 
 @login_required(login_url='login')
-def my_account(request):
-    print(request.user)
-    return render(request, 'profile.html')
+def my_order(request):
+    customer = Customer.objects.get(username=request.user.username)
+    orders = BookOrder.objects.filter(username=customer)
+    orders_value = list(orders.values())
+    for i in range(len(orders)):
+        books_in_order = BookInOrder.objects.filter(order_number=orders[i])
+        orders_value[i]['book_in_order'] = zip([book.isbn for book in books_in_order],
+                                               [book.count for book in books_in_order])
+    print(orders_value)
+    context = {'orders': orders_value}
+    return render(request, 'bookorder.html', context=context)
 
 
 @login_required(login_url='login')
@@ -67,26 +110,35 @@ def shopping_cart(request):
             return render_shopping_cart(request)
         elif 'check_out' in request.POST:
             # buy stuff
-            books_in_shopping_cart = ShoppingCart.objects.filter(
-                username=current_customer).values(
-                'isbn', 'count', title=F('isbn__title'), price=F('isbn__price'), stock=F('isbn__stock_level'))
-            has_invalid_count = False
+            books_in_shopping_cart = ShoppingCart.objects.filter(username=current_customer) \
+                .values('isbn', 'count', title=F('isbn__title'), price=F('isbn__price'), stock=F('isbn__stock_level'))
+            quantity_too_large = False
             for book in books_in_shopping_cart:
+                # stock not enough
                 if book['count'] > book['stock']:
-                    has_invalid_count = True
-                    messages.error(request, mark_safe(
-                        f'Unable to checkout:<br>&emsp;'
-                        f'Book "{book["title"]}" has only {book["stock"]} in stock, '
-                        f'please adjust the quantity<br>'))
-            if has_invalid_count is True:
+                    quantity_too_large = True
+                    messages.error(request,
+                                   mark_safe(f'Unable to checkout:<br>&emsp;'
+                                             f'Book "{book["title"]}" has only {book["stock"]} in stock<br>'))
+            if quantity_too_large:
                 return render_shopping_cart(request)
             else:
-                pass
-            # count = BookOrder.objects.filter(isbn=isbn).values('isbn').annotate(sum_count=Sum('count'))
-            # if count.exists():
-            # print(count.values('sum_count'))
-
-
+                total_price = 0
+                for book in books_in_shopping_cart:
+                    total_price += book['price'] * book['count']
+                with transaction.atomic():
+                    order = BookOrder.objects.create(username=current_customer, total_price=total_price)
+                    for book in books_in_shopping_cart:
+                        book_in_order = BookInOrder.objects.create(order_number=order,
+                                                                   isbn=Book.objects.get(isbn=book['isbn']),
+                                                                   count=book['count'])
+                        book_in_stock = Book.objects.get(isbn=book['isbn'])
+                        book_in_stock.stock_level -= book['count']
+                        book_in_order.save()
+                        book_in_stock.save()
+                    ShoppingCart.objects.filter(username=current_customer).delete()
+                messages.info(request, mark_safe('Order placed successfully! You can view it in "My Order"<br>'))
+                return render_shopping_cart(request)
     else:
         return render_shopping_cart(request)
 
@@ -94,9 +146,8 @@ def shopping_cart(request):
 # helper
 def render_shopping_cart(request):
     current_customer = Customer.objects.get(username=request.user.username)
-    books_in_shopping_cart = ShoppingCart.objects.filter(
-        username=current_customer).values(
-        'isbn', 'count', title=F('isbn__title'), price=F('isbn__price'))
+    books_in_shopping_cart = ShoppingCart.objects.filter(username=current_customer) \
+        .values('isbn', 'count', title=F('isbn__title'), price=F('isbn__price'))
     context = {
         'books_in_shopping_cart': books_in_shopping_cart,
         'total_price': 0,
@@ -151,11 +202,10 @@ def sign_up(request):
                     first_name=data['first_name'],
                     last_name=data['last_name'],
                     address=data['address'],
-                    phone_number=data['phone_number']
-                )
+                    phone_number=data['phone_number'])
                 new_customer.save()
-                context = {'status': 'Signed up successfully!'}
-                return render(request, 'profile.html', context=context)
+                messages.info(request, mark_safe('Signed up successfully! You can login now<br>'))
+                return render(request, 'sign_up.html', context=blank_context)
         else:
             messages.error(request, 'Error: Unknown error, please refresh the page<br>')
             return render(request, 'sign_up.html', context=blank_context)
@@ -195,6 +245,7 @@ def book_search_result(request, form):
     [data.pop(key) for key in to_pop]
 
     context = {'order_by': order_by}
+    result = Book.objects.filter(**data)
     if order_by != '':
         if order_by == form.SORT_CHOICE['publication_date']:
             result = Book.objects.filter(**data).order_by('publication_date')
@@ -234,8 +285,8 @@ def book_search_result(request, form):
         else:
             return HttpResponse("Error")
     else:
-        result = Book.objects.filter(**data)
-    context = {'book_results': result}
+        context.pop('order_by')
+    context['book_results'] = result
     return render(request, 'book_search_result.html', context=context)
 
 
@@ -311,3 +362,31 @@ def render_book_detail(request, isbn_str):
                'book_dict': model_to_dict(book),
                }
     return render(request, 'book_detail.html', context=context)
+
+
+@login_required(login_url='login')
+def ask_a_question(request):
+    current_customer = Customer.objects.get(username=request.user.username)
+    form = CustomerQuestionForm(request.POST)
+    if request.method == 'POST':
+        if form.is_valid():
+            data = form.cleaned_data
+            question = Question(username=current_customer, question=data['question'])
+            question.save()
+            messages.info(request,
+                          mark_safe("Your question has been recorded, check back for an answer from our managers"))
+            return render_ask_a_question(request)
+        else:
+            return HttpResponse(f'Unknown error, please refresh and try again')
+
+    else:
+        return render_ask_a_question(request)
+
+
+# helper
+def render_ask_a_question(request):
+    current_customer = Customer.objects.get(username=request.user.username)
+    previous_questions = Question.objects.filter(username=current_customer)
+    context = {'form': CustomerQuestionForm(),
+               'previous_questions': previous_questions}
+    return render(request, 'customer_question.html', context=context)

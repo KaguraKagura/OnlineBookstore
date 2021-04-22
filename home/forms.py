@@ -3,11 +3,6 @@ from django.core.exceptions import ValidationError
 from .models import Book
 
 
-class LoginForm(forms.Form):
-    username = forms.CharField(required=True, max_length=30)
-    password = forms.CharField(required=True, max_length=30)
-
-
 class SignUpForm(forms.Form):
     username = forms.CharField(max_length=30)
     password = forms.CharField(max_length=30, widget=forms.PasswordInput)
@@ -25,12 +20,12 @@ class BookSearchForm(forms.Form):
     title = forms.CharField(max_length=100, required=False)
     publisher = forms.CharField(max_length=100, required=False)
 
-    subject_choices = EMPTY_SELECTION + [(i, i) for i in list(
-        Book.objects.values_list('subject', flat=True).order_by('subject').distinct())]
-    keywords_choices = EMPTY_SELECTION + [(i, i) for i in list(
-        Book.objects.values_list('keywords', flat=True).order_by('keywords').distinct())]
-    language_choices = EMPTY_SELECTION + [(i, i) for i in list(
-        Book.objects.values_list('language', flat=True).order_by('language').distinct())]
+    subject_choices = EMPTY_SELECTION + [(i, i) for i in
+                                         Book.objects.values_list('subject', flat=True).order_by('subject').distinct()]
+    keywords_choices = EMPTY_SELECTION + [(i, i) for i in Book.objects.values_list('keywords', flat=True).order_by(
+        'keywords').distinct()]
+    language_choices = EMPTY_SELECTION + [(i, i) for i in Book.objects.values_list('language', flat=True).order_by(
+        'language').distinct()]
     sort_by_choices = EMPTY_SELECTION + [(i, i) for i in SORT_CHOICE.values()]
     subject = forms.ChoiceField(choices=subject_choices, required=False)
     keywords = forms.ChoiceField(choices=keywords_choices, required=False)
@@ -43,3 +38,7 @@ class BookSearchForm(forms.Form):
         if data['isbn'] == '' and data['title'] == '' and data['publisher'] == '' and data['subject'] == '' and \
                 data['keywords'] == '' and data['language'] == '':
             raise ValidationError('The search is empty', code='empty_search')
+
+
+class CustomerQuestionForm(forms.Form):
+    question = forms.CharField(max_length=300, widget=forms.Textarea(attrs={'class': 'question_textarea'}))

@@ -27,7 +27,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -76,7 +75,7 @@ WSGI_APPLICATION = 'OnlineBookstore.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': '431Bookstore',
+        'NAME': '431ProjBookstore',
         'USER': 'django',
         'PASSWORD': 'password',
         'HOST': 'localhost',
@@ -84,7 +83,7 @@ DATABASES = {
     }
 }
 
-#
+# # show executed SQL in console
 # LOGGING = {
 #     'version': 1,
 #     'filters': {
@@ -146,3 +145,4 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Other
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+LOGIN_REDIRECT_URL = 'home'

@@ -1,0 +1,30 @@
+{% extends 'base_generic.html' %}
+
+{% block content %}
+    <form method="post">
+        {% csrf_token %}
+        <h3>Please enter your question to our managers</h3>
+        <br>
+        <table>{{ form.as_table }}</table>
+        <br>
+        <input type="submit" value="Submit">
+    </form>
+    <br>
+    <hr>
+    <hr>
+    <h3>Previously asked questions</h3>
+    <br>
+    {% if not previous_questions %}
+        You haven't asked any questions.
+    {% else %}
+        {% for q in previous_questions %}
+            <strong>Question ID: </strong>{{ q.question_id }}&emsp;
+            <strong>Asked on: </strong>{{ q.time_asked }}
+            <br>
+            <strong>Question: </strong>{{ q.question }}
+            <br>
+            <strong>Answer: </strong>{{ q.answer }}
+            <hr>
+        {% endfor %}
+    {% endif %}
+{% endblock %}
