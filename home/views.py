@@ -4,7 +4,7 @@ from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import Http404
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Q, F, Sum, Avg
 from django.forms.models import model_to_dict
 from django.utils.safestring import mark_safe
@@ -14,62 +14,42 @@ from django.template import RequestContext
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 
-from .forms import *
-from .models import *
+from .utils import *
 
 
 # Create your views here.
 
-
 def index(request):
-    most_purchased_books = Book.objects.values('isbn', 'title', 'price').distinct() \
+    most_purchased_books = Book.objects.values('isbn', 'title', 'price') \
         .annotate(total_quantity=Sum('bookinorder__count')).order_by('-total_quantity')
-    recommended_books = Book.objects.all().values('isbn', 'title', 'price')[:10]
+    if request.user.is_authenticated:
+        current_customer = Customer.objects.get(username=request.user.username)
+        recommended_books = Book.objects.exclude(bookinorder__order_number__username=current_customer) \
+                                .values('isbn', 'title', 'price')[:10]
+    else:
+        recommended_books = Book.objects.values('isbn', 'title', 'price')[:10]
     context = {'most_purchased_books': most_purchased_books,
                'recommended_books': recommended_books}
     return render(request, 'index.html', context=context)
 
 
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class MyAccountView(views.View):
-    def get(self, request, *args, **kwargs):
-        customer = Customer.objects.get(username=self.request.user.username)
-        comments = Comment.objects.filter(username=customer)
-        trusts = TrustedCustomer.objects.filter(username=customer)
-        untrusts = UntrustedCustomer.objects.filter(username=customer)
-        context = {
-            'customer': customer,
-            'comments': comments,
-            'trusts': trusts,
-            'untrusts': untrusts,
-        }
-        return render(request, 'my_account.html', context=context)
+def book_search(request):
+    blank_form = BookSearchForm()
+    blank_context = {'form': blank_form}
 
-    def post(self, request, *args, **kwargs):
-        current_customer = Customer.objects.get(username=request.user.username)
-        if 'trust' in request.POST:
-            target_customer = Customer.objects.get(username=request.POST.get('trust'))
-            change_customer_trust_status(current_customer, target_customer, 'trust')
-            messages.info(request, mark_safe(f'You have successfully trusted "{target_customer}"'))
-        elif 'untrust' in request.POST:
-            target_customer = Customer.objects.get(username=request.POST.get('untrust'))
-            change_customer_trust_status(current_customer, target_customer, 'untrust')
-            messages.info(request, mark_safe(f'You have successfully untrusted "{target_customer}"'))
-        return self.get(request, args, kwargs)
-
-
-@login_required(login_url='login')
-def my_order(request):
-    customer = Customer.objects.get(username=request.user.username)
-    orders = BookOrder.objects.filter(username=customer)
-    orders_value = list(orders.values())
-    for i in range(len(orders)):
-        books_in_order = BookInOrder.objects.filter(order_number=orders[i])
-        orders_value[i]['book_in_order'] = zip([book.isbn for book in books_in_order],
-                                               [book.count for book in books_in_order])
-    print(orders_value)
-    context = {'orders': orders_value}
-    return render(request, 'bookorder.html', context=context)
+    if request.method == 'POST':
+        form = BookSearchForm(request.POST)
+        if form.is_valid():
+            # good search
+            return render_book_search_result(request, form)
+        else:
+            # errors
+            messages.error(request, "Error:")
+            for _, error in form.errors.items():
+                messages.error(request, error)
+            return render(request, 'book_search.html', context=blank_context)
+    else:
+        return render(request, 'book_search.html', context=blank_context)
 
 
 @login_required(login_url='login')
@@ -125,19 +105,65 @@ def shopping_cart(request):
         return render_shopping_cart(request)
 
 
-# helper
-def render_shopping_cart(request):
+@method_decorator(login_required(login_url='login'), name='dispatch')
+class MyAccountView(views.View):
+    def get(self, request, *args, **kwargs):
+        customer = Customer.objects.get(username=self.request.user.username)
+        comments = Comment.objects.filter(username=customer)
+        trusts = TrustedCustomer.objects.filter(username=customer)
+        untrusts = UntrustedCustomer.objects.filter(username=customer)
+        context = {
+            'customer': customer,
+            'comments': comments,
+            'trusts': trusts,
+            'untrusts': untrusts,
+        }
+        return render(request, 'my_account.html', context=context)
+
+    def post(self, request, *args, **kwargs):
+        current_customer = Customer.objects.get(username=request.user.username)
+        if 'trust' in request.POST:
+            target_customer = Customer.objects.get(username=request.POST.get('trust'))
+            change_customer_trust_status(current_customer, target_customer, 'trust')
+            messages.info(request, mark_safe(f'You have successfully trusted "{target_customer}"'))
+        elif 'untrust' in request.POST:
+            target_customer = Customer.objects.get(username=request.POST.get('untrust'))
+            change_customer_trust_status(current_customer, target_customer, 'untrust')
+            messages.info(request, mark_safe(f'You have successfully untrusted "{target_customer}"'))
+        return self.get(request, args, kwargs)
+
+
+@login_required(login_url='login')
+def my_order(request):
+    customer = Customer.objects.get(username=request.user.username)
+    orders = BookOrder.objects.filter(username=customer)
+    orders_value = list(orders.values())
+    for i in range(len(orders)):
+        books_in_order = BookInOrder.objects.filter(order_number=orders[i])
+        orders_value[i]['book_in_order'] = zip([book.isbn for book in books_in_order],
+                                               [book.count for book in books_in_order])
+    print(orders_value)
+    context = {'orders': orders_value}
+    return render(request, 'bookorder.html', context=context)
+
+
+@login_required(login_url='login')
+def my_question(request):
     current_customer = Customer.objects.get(username=request.user.username)
-    books_in_shopping_cart = ShoppingCart.objects.filter(username=current_customer) \
-        .values('isbn', 'count', title=F('isbn__title'), price=F('isbn__price'))
-    context = {
-        'books_in_shopping_cart': books_in_shopping_cart,
-        'total_price': 0,
-    }
-    if books_in_shopping_cart.exists():
-        for book in books_in_shopping_cart:
-            context['total_price'] += book['price'] * book['count']
-    return render(request, 'shopping_cart.html', context=context)
+    form = CustomerQuestionForm(request.POST)
+    if request.method == 'POST':
+        if form.is_valid():
+            data = form.cleaned_data
+            question = Question(username=current_customer, question=data['question'])
+            question.save()
+            messages.info(request,
+                          mark_safe("Your question has been recorded, check back for an answer from our managers"))
+            return render_ask_a_question(request)
+        else:
+            return HttpResponse(f'Unknown error, please refresh and try again')
+
+    else:
+        return render_ask_a_question(request)
 
 
 def sign_up(request):
@@ -172,82 +198,55 @@ def sign_up(request):
         return render(request, 'sign_up.html', context=blank_context)
 
 
-def book_search(request):
-    blank_form = BookSearchForm()
-    blank_context = {'form': blank_form}
+class DegreeOfSeparationSearchView(views.View):
+    form = DegreeOfSeparationSearchForm()
+    context = {'form': form}
 
-    if request.method == 'POST':
-        form = BookSearchForm(request.POST)
-        if form.is_valid():
-            # good search
-            return render_book_search_result(request, form)
-        else:
-            # errors
-            messages.error(request, "Error:")
-            for _, error in form.errors.items():
-                messages.error(request, error)
-            return render(request, 'book_search.html', context=blank_context)
-    else:
-        return render(request, 'book_search.html', context=blank_context)
+    def get(self, request, *args, **kwargs):
+        return render(request, 'degree_of_separation_search.html', context=self.context)
 
+    def post(self, request, *args, **kwargs):
+        author = request.POST.get('author')
+        firstname, lastname = author.split('_')
+        degree = int(request.POST.get('degree_of_separation'))
+        context = {'first_name_searched_on': firstname,
+                   'last_name_searched_on': lastname}
 
-# helper
-def render_book_search_result(request, form):
-    data = form.cleaned_data
-    # clean data for query
-    order_by = ''
-    author = ''
-    to_pop = []
-    for key, value in data.items():
-        if key == 'sort_by':
-            order_by = value
-            to_pop.append(key)
-        elif key == 'author':
-            author = value
-            to_pop.append(key)
-        elif value == '':
-            to_pop.append(key)
-    [data.pop(key) for key in to_pop]
-    if author != '':
-        data['author__first_name'], data['author__last_name'] = author.split('_')
-    context = {'order_by': order_by}
-    # start query
-    if order_by != '':
-        if order_by == form.SORT_CHOICE['publication_date']:
-            result = Book.objects.filter(**data).order_by('publication_date')
-        elif order_by == form.SORT_CHOICE['score']:
-            result = Book.objects.filter(**data) \
-                .values('title', 'isbn', 'publisher', 'author__first_name', 'author__last_name', 'subject', 'keywords',
-                        'language', 'price') \
-                .annotate(avg_score=Avg('comment__score')).order_by('avg_score')
-        elif order_by == form.SORT_CHOICE['trusted_score']:
-            if request.user.is_authenticated:
-                result = Book.objects.filter(**data) \
-                    .values('title', 'isbn', 'publisher', 'author__first_name', 'author__last_name', 'subject',
-                            'keywords', 'language', 'price') \
-                    .annotate(avg_score=Avg('comment__score')).order_by('avg_score')
-                context['book_results'] = result
-                return render(request, 'book_search_result.html', context=context)
-            else:
-                # if customer is not logged in, then cannot sort by trusted customer
-                messages.info(request, mark_safe(
-                    f'You are not logged in, thus you cannot Sort by "{form.SORT_CHOICE["trusted_score"]}"<br>'))
-                context.pop('order_by')
-                context['form'] = BookSearchForm()
-            return render(request, 'book_search.html', context=context)
-        else:
-            return HttpResponse("Error")
-    else:
-        if author != '':
-            result = Book.objects.filter(**data) \
-                .values('title', 'isbn', 'publisher', 'author__first_name', 'author__last_name',
-                        'subject', 'keywords', 'language', 'price')
-        else:
-            result = Book.objects.filter(**data) \
-                .values('title', 'isbn', 'publisher', 'subject', 'keywords', 'language', 'price')
-        context.pop('order_by')
-    context['book_results'] = result
-    return render(request, 'book_search_result.html', context=context)
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT A2.first_name, A2.last_name '
+                           'FROM home_author A1 join home_author A2 on A1.isbn_id = A2.isbn_id '
+                           'WHERE A1.first_name = %s AND A1.last_name = %s '
+                           'AND A2.first_name != %s AND A2.last_name != %s',
+                           [firstname, lastname, firstname, lastname])
+            raw_separated_authors = cursor.fetchall()
+
+        if degree == 1:
+            context['degree'] = 1
+        elif degree == 2:
+            # helper to see if there exists a degree 1 relationship
+            def degree1Exists(fn, ln, fn_from_search, ln_from_search):
+                with connection.cursor() as c:
+                    c.execute('SELECT A2.first_name, A2.last_name '
+                              'FROM home_author A1 join home_author A2 on A1.isbn_id = A2.isbn_id '
+                              'WHERE A1.first_name = %s AND A1.last_name = %s '
+                              'AND A2.first_name != %s AND A2.last_name != %s '
+                              'AND A2.first_name != %s AND A2.last_name != %s',
+                              [fn, ln, fn, ln, fn_from_search, ln_from_search])
+                    result = c.fetchall()
+                    return result
+
+            temp_raw_author = []
+            [temp_raw_author.append(raw_author) for raw_author in raw_separated_authors
+             if not degree1Exists(raw_author[0], raw_author[1], firstname, lastname)]
+            raw_separated_authors = temp_raw_author
+            context['degree'] = 2
+
+        context['authors'] = [dict(zip(['first_name', 'last_name'], raw_author))
+                              for raw_author in raw_separated_authors]
+        for author in context['authors']:
+            author['books'] = Book.objects.filter(author__first_name=author['first_name'],
+                                                  author__last_name=author['last_name']).order_by('title')
+        return render(request, 'degree_of_separation_search_result.html', context=context)
 
 
 def book_detail(request, isbn_str):
@@ -322,91 +321,3 @@ def book_detail(request, isbn_str):
                     return render_book_detail(request, isbn_str)
     else:
         return render_book_detail(request, isbn_str)
-
-
-# helper
-def change_customer_trust_status(current_customer, target_customer, action):
-    with transaction.atomic():
-        if action == 'trust':
-            TrustedCustomer.objects.get_or_create(username=current_customer,
-                                                  trusted_username=target_customer)
-            try:
-                untrust = UntrustedCustomer.objects.get(username=current_customer,
-                                                        untrusted_username=target_customer)
-                untrust.delete()
-            except UntrustedCustomer.DoesNotExist:
-                pass
-        elif action == 'untrust':
-            UntrustedCustomer.objects.get_or_create(username=current_customer,
-                                                    untrusted_username=target_customer)
-            try:
-                trust = TrustedCustomer.objects.get(username=current_customer,
-                                                    trusted_username=target_customer)
-                trust.delete()
-            except TrustedCustomer.DoesNotExist:
-                pass
-
-
-# helper
-def render_book_detail(request, isbn_str):
-    try:
-        book = Book.objects.get(isbn=isbn_str)
-    except Book.DoesNotExist:
-        raise Http404('ISBN does not exist')
-
-    authors = Author.objects.filter(isbn=isbn_str)
-    comments = Comment.objects.filter(isbn=isbn_str)
-    context = {'book': book,
-               'comments': comments,
-               'authors': authors,
-               'book_dict': model_to_dict(book), }
-
-    if request.user.is_authenticated:
-        current_customer = Customer.objects.get(username=request.user.username)
-        trust_status = {}
-        for comment in comments:
-            if comment.username == current_customer:
-                trust_status[comment.id] = 'self'
-                continue
-            try:
-                TrustedCustomer.objects.get(username=current_customer, trusted_username=comment.username)
-                trust_status[comment.id] = 'trust'
-                continue
-            except TrustedCustomer.DoesNotExist:
-                trust_status[comment.id] = ''
-            try:
-                UntrustedCustomer.objects.get(username=current_customer, untrusted_username=comment.username)
-                trust_status[comment.id] = 'untrust'
-                continue
-            except UntrustedCustomer.DoesNotExist:
-                trust_status[comment.id] = ''
-        context['trust_status'] = trust_status,
-    return render(request, 'book_detail.html', context=context)
-
-
-@login_required(login_url='login')
-def ask_a_question(request):
-    current_customer = Customer.objects.get(username=request.user.username)
-    form = CustomerQuestionForm(request.POST)
-    if request.method == 'POST':
-        if form.is_valid():
-            data = form.cleaned_data
-            question = Question(username=current_customer, question=data['question'])
-            question.save()
-            messages.info(request,
-                          mark_safe("Your question has been recorded, check back for an answer from our managers"))
-            return render_ask_a_question(request)
-        else:
-            return HttpResponse(f'Unknown error, please refresh and try again')
-
-    else:
-        return render_ask_a_question(request)
-
-
-# helper
-def render_ask_a_question(request):
-    current_customer = Customer.objects.get(username=request.user.username)
-    previous_questions = Question.objects.filter(username=current_customer)
-    context = {'form': CustomerQuestionForm(),
-               'previous_questions': previous_questions}
-    return render(request, 'customer_question.html', context=context)

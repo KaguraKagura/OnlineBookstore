@@ -1,5 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
+
 from .models import Book, Author
 
 
@@ -47,3 +48,10 @@ class BookSearchForm(forms.Form):
 
 class CustomerQuestionForm(forms.Form):
     question = forms.CharField(max_length=300, widget=forms.Textarea(attrs={'class': 'question_textarea'}))
+
+
+class DegreeOfSeparationSearchForm(forms.Form):
+    author_choices = [(f'{i[0]}_{i[1]}', f'{i[0]} {i[1]}') for i in Author.objects.values_list(
+        'first_name', 'last_name').order_by('last_name').distinct()]
+    author = forms.ChoiceField(choices=author_choices)
+    degree_of_separation = forms.ChoiceField(choices=[(1, 1), (2, 2)])

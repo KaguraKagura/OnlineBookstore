@@ -67,19 +67,18 @@
 
     <h3>My Untrusted Users</h3>
     <ul>
-    {% if untrusts %}
-        {% for user in untrusts %}
-            <li>
-                <strong>Username: </strong>{{ user.untrusted_username }}
-                &emsp;
-                <button onclick="trustButtonClicked('trust', '{{ user.untrusted_username }}')">
-                    Trust this user
-                </button>
-            </li>
-        {% endfor %}
-    {% else %}
-        You haven't untrusted any users
-    {% endif %}
-</ul>
+        {% if untrusts %}
+            {% for user in untrusts %}
+                <li>
+                    <strong>Username: </strong>{{ user.untrusted_username }}
+                    <button onclick="trustButtonClicked('trust', '{{ user.untrusted_username }}')">
+                        Trust this user
+                    </button>
+                </li>
+            {% endfor %}
+        {% else %}
+            You haven't untrusted any users
+        {% endif %}
+    </ul>
 
 {% endblock %}

@@ -25,7 +25,8 @@
                     <li><a href="{% url 'shopping_cart' %}">Shopping Cart</a></li>
                     <li><a href="{% url 'my_account' %}">My Account</a></li>
                     <li><a href="{% url 'my_order' %}">My Order</a></li>
-                    <li><a href="{% url 'ask_a_question' %}">My Question</a></li>
+                    <li><a href="{% url 'my_question' %}">My Question</a></li>
+                    <li><a href="{% url 'degree_of_separation_search' %}">Degree of Separation Search</a></li>
                     <li><a href="{% url 'login' %}">Login/Sign up</a></li>
                     {% if user.is_authenticated %}
                         <li><a href="{% url 'logout' %}">Logout</a></li>

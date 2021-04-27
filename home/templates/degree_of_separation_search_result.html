@@ -1,0 +1,33 @@
+{% extends 'base_generic.html' %}
+
+{% block content %}
+    <h1>Search results:</h1>
+    {% if authors %}
+        <p>
+            The degree of separation searched is
+            <strong style="font-size: 20px">{{ degree }}</strong> from
+            <strong style="font-size: 20px">{{ first_name_searched_on }} {{ last_name_searched_on }}</strong>
+        </p>
+        {% for author in authors %}
+            <h5>Books by</h5>
+            <strong>First name: </strong>{{ author.first_name }}
+            <strong>Last name: </strong>{{ author.last_name }}
+            <ul>
+                {% for book in author.books %}
+                    <li><a href="{% url 'book_detail' book.isbn %}">
+                    <strong>Title: </strong>{{ book.title }}&emsp;
+                    <strong>ISBN: </strong>{{ book.isbn }}&emsp;
+                    <strong>Publisher: </strong>{{ book.publisher }}&emsp;
+                    <strong>Subject: </strong>{{ book.subject }}&emsp;
+                    <strong>Keyword: </strong>{{ book.keywords }}&emsp;
+                    <strong>Language: </strong>{{ book.language }}&emsp;
+                    <strong>Price: </strong>${{ book.price }}&emsp;
+                </a>
+                {% endfor %}
+            </ul>
+            <hr>
+        {% endfor %}
+    {% else %}
+        <p>Search result is empty.</p>
+    {% endif %}
+{% endblock %}

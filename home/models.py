@@ -1,5 +1,4 @@
 import django.core.validators as v
-
 from django.db import models
 from django.contrib.auth.models import User
 

@@ -3,7 +3,7 @@
 {% block content %}
     <h1>Bookstore</h1>
     <p>Welcome to Bookstore!</p>
-    <h3>Most Purchased Books:</h3>
+    <h3>Popular Books:</h3>
     {% if not most_purchased_books %}
         Currently there are no most purchased books.
         <br>
@@ -16,13 +16,23 @@
                         <strong>Title: </strong>{{ book.title }}&emsp;
                         <strong>ISBN: </strong>{{ book.isbn }}&emsp;
                         <strong>Price: </strong>${{ book.price }}&emsp;
-                        <strong>Total sales: </strong>{{ book.total_quantity }}&emsp;
+                        <strong>Total sales: </strong>
+                        {% if book.total_quantity %}
+                            {{ book.total_quantity }}
+                        {% else %}
+                            0
+                        {% endif %}
                     </a>
                 </li>
             </ul>
         {% endfor %}
     {% endif %}
-    <h3>Recommended Books:</h3>
+    <h3>
+        Recommended Books
+        {% if user.is_authenticated %}
+            (Book you haven't bought):
+        {% endif %}
+    </h3>
     {% if not recommended_books %}
         Currently there are no books in the store.
     {% else %}
