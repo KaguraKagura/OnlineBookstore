@@ -1,7 +1,30 @@
 {% extends 'base_generic.html' %}
 
 {% block content %}
+    <script type="text/javascript">
+        function trustButtonClicked(action, userClicked) {
+            let form = prepareForm('{{ csrf_token }}');
+            let trustField = document.createElement('input');
+            trustField.type = 'hidden'
+            if (action === 'trust') {
+                trustField.name = 'trust';
+                trustField.value = userClicked;
+            } else if (action === 'untrust') {
+                trustField.name = 'untrust';
+                trustField.value = userClicked
+            }
+            form.appendChild(trustField);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
+
+
     <h1>My Account</h1>
+    <p>
+        Hello, {{ customer.username }}!
+    </p>
+    <h3>My Information</h3>
     <ul>
         <li><strong>Username: </strong>{{ customer.username }}</li>
         <li><strong>Name: </strong>{{ customer.first_name }} {{ customer.last_name }}</li>
@@ -9,4 +32,54 @@
         <li><strong>Phone Number: </strong>{{ customer.phone_number }}</li>
         <li><strong>Customer since: </strong>{{ customer.date_joined.date }}</li>
     </ul>
+
+    <h3>My Comments</h3>
+    {% for comment in comments %}
+        <ul>
+            <li><strong>Commented on: </strong>{{ comment.time }}</li>
+            <li><strong>Score: </strong>{{ comment.score }}</li>
+            <li><strong>Comment: </strong>{{ comment.comment_text }}</li>
+            <li>
+                <strong>Very useful count: </strong>{{ comment.very_useful_count }}&emsp;
+                <strong>Useful count: </strong>{{ comment.useful_count }}&emsp;
+                <strong>Useless count: </strong>{{ comment.useless_count }}&emsp;
+            </li>
+        </ul>
+        <hr>
+    {% endfor %}
+
+    <h3>My Trusted Users</h3>
+    <ul>
+        {% if trusts %}
+            {% for user in trusts %}
+                <li>
+                    <strong>Username: </strong>{{ user.trusted_username }}
+                    &emsp;
+                    <button onclick="trustButtonClicked('untrust', '{{ user.trusted_username }}')">
+                        Untrust this user
+                    </button>
+                </li>
+            {% endfor %}
+        {% else %}
+            You haven't trusted any users
+        {% endif %}
+    </ul>
+
+    <h3>My Untrusted Users</h3>
+    <ul>
+    {% if untrusts %}
+        {% for user in untrusts %}
+            <li>
+                <strong>Username: </strong>{{ user.untrusted_username }}
+                &emsp;
+                <button onclick="trustButtonClicked('trust', '{{ user.untrusted_username }}')">
+                    Trust this user
+                </button>
+            </li>
+        {% endfor %}
+    {% else %}
+        You haven't untrusted any users
+    {% endif %}
+</ul>
+
 {% endblock %}

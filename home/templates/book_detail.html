@@ -1,5 +1,5 @@
 {% extends "base_generic.html" %}
-{% load range %}
+{% load range list_index %}
 
 
 {% block content %}
@@ -36,7 +36,7 @@
             <strong>Author(s):</strong>
             <br>
             {% for author in authors %}
-                {{ author.first_name }} {{ author.last_name }}
+                &emsp;&emsp;{{ author.first_name }} {{ author.last_name }}
                 <br>
             {% endfor %}
         </li>
@@ -49,7 +49,7 @@
         {% endfor %}
         <div style="margin-top:20px">
             {% if not user.is_authenticated %}
-                Please login/sign up to buy the book or write a comment
+                Please login/sign up to buy the book or write a comment <br><br>
             {% else %}
                 <form method="post" id="add_to_cart_form">
                     {% csrf_token %}
@@ -79,25 +79,50 @@
             {% if not comments %}
                 Currently there are no comments on this book. You could be the first!
             {% else %}
-                {% for comment in comments %}
-                    <hr>
-                    <strong>Commented by:</strong> {{ comment.username }} <strong>on</strong> {{ comment.time }}
-                    <p><strong>Score:</strong> {{ comment.score }}</p>
-                    <p><strong>Comment:</strong> {{ comment.comment_text }}</p>
-                    <p><strong>Rate this comment:</strong></p>
-                    {% if not user.is_authenticated %}
-                        Please login/sign up to rate comment
-                    {% else %}
-                        <form method="post">
-                            {% csrf_token %}
-                            <input type="hidden" name='comment_id' value="{{ comment.id }}">
-                            <input type="submit" name='very_useful'
-                                   value="very useful: {{ comment.very_useful_count }}">
-                            <input type="submit" name='useful' value="useful: {{ comment.useful_count }}">
-                            <input type="submit" name='useless' value="useless: {{ comment.useless_count }}">
-                        </form>
-                    {% endif %}
-                {% endfor %}
+                {% with trust_list=trust_status|list_index:0 %}
+                    {% for comment in comments %}
+                        <hr>
+                        <ul>
+                            <li>
+                                <strong>Commented by:</strong> {{ comment.username }}
+                                <strong>on</strong> {{ comment.time }}
+                            </li>
+                            <li>
+                                <strong>Score:</strong> {{ comment.score }}
+                            </li>
+                            <li>
+                                <strong>Comment:</strong> {{ comment.comment_text }}
+                            </li>
+                        </ul>
+                        <strong>Rate this comment:</strong><br>
+                        {% if not user.is_authenticated %}
+                            Please login/sign up to rate comment<br>
+                        {% else %}
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name='comment_id' value="{{ comment.id }}">
+                                <input type="submit" name='very_useful'
+                                       value="very useful: {{ comment.very_useful_count }}">
+                                <input type="submit" name='useful' value="useful: {{ comment.useful_count }}">
+                                <input type="submit" name='useless' value="useless: {{ comment.useless_count }}">
+                                <br><br>
+                                {% with status=trust_list|list_index:comment.id %}
+                                    {% if status == 'self' %}
+                                        This is your <strong>own</strong> comment.
+                                    {% else %}
+                                        {% if status %}
+                                            You currently <strong>{{ status }}</strong> this comment's user<br>
+                                        {% else %}
+                                            You haven't trusted or untrusted this comment's user<br>
+                                        {% endif %}
+                                        <input type="submit" name='trust' value="Trust this user">
+                                        <input type="submit" name='untrust' value="Untrust this user">
+                                    {% endif %}
+                                {% endwith %}
+                            </form>
+                        {% endif %}
+                    {% endfor %}
+                {% endwith %}
             {% endif %}
 
         </div>

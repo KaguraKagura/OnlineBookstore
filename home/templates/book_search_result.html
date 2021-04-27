@@ -8,16 +8,27 @@
     {% endif %}
     <br>
     {% if book_results %}
-        <ul>
-            <li>
-                {% for book in book_results %}
-                    <a href="{% url 'book_detail' book.isbn %}">
-                        {{ book.title }}&emsp;{{ book.isbn }}&emsp;{{ book.publisher }}&emsp;${{ book.price }}
-                    </a>
+        {% for book in book_results %}
+            <a href="{% url 'book_detail' book.isbn %}">
+                <ul>
+                    <li><strong>Title: </strong>{{ book.title }}</li>
+                    <li><strong>ISBN: </strong>{{ book.isbn }}</li>
+                    {% if book.author__first_name and book.author__last_name %}
+                        <li><strong>Author: </strong>{{ book.author__first_name }} {{ book.author__last_name }}</li>
+                    {% endif %}
+                    <li><strong>Publisher: </strong>{{ book.publisher }}</li>
+                    <li><strong>Subject: </strong>{{ book.subject }}</li>
+                    <li><strong>Keyword: </strong>{{ book.keywords }}</li>
+                    <li><strong>Language: </strong>{{ book.language }}</li>
+                    <li><strong>Price: </strong>${{ book.price }}</li>
+                    {% if book.avg_score %}
+                        <li><strong>Average score: </strong>{{ book.avg_score }}</li>
+                    {% endif %}
+                </ul>
+            </a>
+            <hr>
+        {% endfor %}
 
-                {% endfor %}
-            </li>
-        </ul>
     {% else %}
         <p>Search result is empty.</p>
     {% endif %}

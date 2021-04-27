@@ -4,19 +4,6 @@
 
 {% block content %}
     <script type="text/javascript">
-
-        // create a form and add csrf
-        function prepareForm() {
-            let form = document.createElement('form');
-            form.method = 'post';
-            let csrf = document.createElement('input');
-            csrf.type = 'hidden';
-            csrf.name = 'csrfmiddlewaretoken';
-            csrf.value = '{{ csrf_token }}'
-            form.appendChild(csrf);
-            return form;
-        }
-
         function createQuantityActionField(action) {
             let quantityAction = document.createElement('input');
             quantityAction.type = 'hidden';
@@ -27,7 +14,7 @@
 
         function onDecreaseCountButtonClicked(clickedISBN) {
             function decreaseCount() {
-                let form = prepareForm();
+                let form = prepareForm('{{ csrf_token }}');
                 let isbn = document.createElement('input');
                 isbn.type = 'hidden';
                 isbn.name = 'isbn';
@@ -41,8 +28,8 @@
             if (parseInt(document.getElementById(clickedISBN).innerHTML) === 1) {
                 if (confirm("Do you want to remove this item?")) {
                     decreaseCount();
-                } else { // Answer is no, do nothing
-
+                } else {
+                    // Answer is no, do nothing
                 }
             } else {
                 decreaseCount();
@@ -50,7 +37,7 @@
         }
 
         function onIncreaseCountButtonClicked(clickedISBN) {
-            let form = prepareForm();
+            let form = prepareForm('{{ csrf_token }}');
             let isbn = document.createElement('input');
             isbn.type = 'hidden';
             isbn.name = 'isbn';
@@ -62,7 +49,7 @@
         }
 
         function onCheckoutButtonClicked() {
-            let form = prepareForm();
+            let form = prepareForm('{{ csrf_token }}');
             let checkout = document.createElement('input');
             checkout.type = 'hidden';
             checkout.name = 'check_out';

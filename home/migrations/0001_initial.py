@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
-            name='UnTrustedCustomer',
+            name='UntrustedCustomer',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('untrusted_username', models.ForeignKey(on_delete=django.db.models.deletion.RESTRICT, related_name='ut_untrusted_username', to='home.customer')),

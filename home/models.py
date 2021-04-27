@@ -122,14 +122,20 @@ class TrustedCustomer(models.Model):
     username = models.ForeignKey(Customer, on_delete=models.RESTRICT, related_name='t_username')
     trusted_username = models.ForeignKey(Customer, on_delete=models.RESTRICT, related_name='t_trusted_username')
 
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['username', 'trusted_username'], name='unique trust pair')]
+
     def __str__(self):
         return f'{self.username}'
 
 
-class UnTrustedCustomer(models.Model):
+class UntrustedCustomer(models.Model):
     username = models.ForeignKey(Customer, on_delete=models.RESTRICT, related_name='ut_username')
     untrusted_username = models.ForeignKey(Customer, on_delete=models.RESTRICT,
                                            related_name='ut_untrusted_username')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['username', 'untrusted_username'], name='unique untrust pair')]
 
     def __str__(self):
         return f'{self.username}'
