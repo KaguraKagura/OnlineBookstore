@@ -13,14 +13,36 @@
     <label>
         Enter the number of books wanted: <input type="text" name="number"><br>
     </label>
-    Generate report for:
+    Generate report on:
     <input type="submit" name="top_books" value="Top popular books">
     <input type="submit" name="top_authors" value="Top popular authors">
     <input type="submit" name="top_publishers" value="Top popular publishers">
 </form>
+
 <ul>
+    {% for result in results %}
+        <li>
 
+            {% if result_type == 'books' %}
+                <a href="{% url 'book_detail' result.isbn %}">
+                    <strong>ISBN: </strong>{{ result.isbn }}
+                    <strong>Title: </strong>{{ result.title }}
+                </a>
+            {% elif result_type == 'authors' %}
+                <strong>Firstname: </strong>{{ result.first_name }}
+                <strong>Lastname: </strong>{{ result.last_name }}
+            {% elif result_type == 'publishers' %}
+                <strong>Publisher: </strong>{{ result.publisher }}
+            {% endif %}
+            <strong>Total sales: </strong>
+            {% if result.count %}
+                {{ result.count }}
+            {% else %}
+                0
+            {% endif %}
+        </li>
 
+    {% endfor %}
 </ul>
 </body>
 </html>

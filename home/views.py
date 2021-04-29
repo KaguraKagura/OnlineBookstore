@@ -14,6 +14,7 @@ from django.views.generic import RedirectView
 from django.template import RequestContext
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
+from datetime import datetime, timedelta
 
 from .utils import *
 
@@ -23,7 +24,7 @@ from .utils import *
 def index(request):
     most_purchased_books = Book.objects.values('isbn', 'title', 'price') \
                                .annotate(total_quantity=Sum('bookinorder__count')).order_by('-total_quantity')[:10]
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and not request.user.is_superuser:
         current_customer = Customer.objects.get(username=request.user.username)
         recommended_books = Book.objects.exclude(bookinorder__order_number__username=current_customer) \
                                 .values('isbn', 'title', 'price')[:10]
@@ -372,17 +373,27 @@ class AdminBookStatView(views.View):
         except ValueError:
             return HttpResponse('Please enter a positive integer')
         context = {}
-        # if 'top_trusted' in request.POST:
-        #     customers = (Customer.objects.values(
-        #         'username', 'first_name', 'last_name', 'address', 'phone_number', 'banned')) \
-        #                     .annotate(Count('t_trusted_username')).order_by('-t_trusted_username__count')[:number]
-        #     context['customers'] = customers
-        #     context['trust'] = 1
-        # elif 'top_useful' in request.POST:
-        #     customers = Customer.objects.values(
-        #         'username', 'first_name', 'last_name', 'address', 'phone_number', 'banned') \
-        #                     .annotate(usefulness_score=Avg('comment__usefulness_score')) \
-        #                     .order_by('-usefulness_score')[:number]
-        #     context['customers'] = customers
-        #     context['useful'] = 1
+        one_quarter_ago = datetime.now() - timedelta(days=90)
+        print(one_quarter_ago)
+        if 'top_books' in request.POST:
+            books = BookInOrder.objects.filter(order_number__order_time__gt=one_quarter_ago) \
+                        .values('isbn', 'isbn__title').annotate(count=Sum('count')) \
+                        .order_by('-count')[:number]
+            context['results'] = books
+            context['result_type'] = 'books'
+        elif 'top_authors' in request.POST:
+            authors = Book.objects.filter(bookinorder__order_number__order_time__gt=one_quarter_ago) \
+                          .values('author__first_name', 'author__last_name') \
+                          .annotate(count=Sum('bookinorder__count')) \
+                          .order_by('-count')[:number]
+            print(authors)
+            context['results'] = authors
+            context['result_type'] = 'authors'
+        elif 'top_publishers' in request.POST:
+            publishers = Book.objects.filter(bookinorder__order_number__order_time__gt=one_quarter_ago) \
+                             .values('publisher').annotate(count=Sum('bookinorder__count')) \
+                             .order_by('-count')[:number]
+            print(publishers)
+            context['results'] = publishers
+            context['result_type'] = 'publishers'
         return render(request, 'admin_book_stat_view.html', context=context)
