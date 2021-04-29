@@ -85,6 +85,7 @@ class Comment(models.Model):
     useless_count = models.IntegerField(default=0, validators=[v.MinValueValidator(0)])
     useful_count = models.IntegerField(default=0, validators=[v.MinValueValidator(0)])
     very_useful_count = models.IntegerField(default=0, validators=[v.MinValueValidator(0)])
+    usefulness_score = models.FloatField(default=0.0)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['username', 'isbn'], name='unique comment')]

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load round_float %}
+<head>
+    <title>Book Stat</title>
+</head>
+<body>
+<a href="{% url 'logout' %}">Logout</a>
+<h1>Hello, admin!</h1>
+<h3>You can generate book reports here</h3>
+<form method="post">
+    {% csrf_token %}
+    <label>
+        Enter the number of books wanted: <input type="text" name="number"><br>
+    </label>
+    Generate report for:
+    <input type="submit" name="top_books" value="Top popular books">
+    <input type="submit" name="top_authors" value="Top popular authors">
+    <input type="submit" name="top_publishers" value="Top popular publishers">
+</form>
+<ul>
+
+
+</ul>
+</body>
+</html>

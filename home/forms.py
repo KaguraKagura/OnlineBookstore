@@ -55,3 +55,4 @@ class DegreeOfSeparationSearchForm(forms.Form):
         'first_name', 'last_name').order_by('last_name').distinct()]
     author = forms.ChoiceField(choices=author_choices)
     degree_of_separation = forms.ChoiceField(choices=[(1, 1), (2, 2)])
+

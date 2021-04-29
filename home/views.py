@@ -2,10 +2,11 @@ from django import views
 from django.shortcuts import render, HttpResponse, redirect
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.http import Http404
 from django.db import transaction, connection
-from django.db.models import Q, F, Sum, Avg
+from django.db.models import Q, F, Sum, Avg, Count
 from django.forms.models import model_to_dict
 from django.utils.safestring import mark_safe
 from django.views import generic
@@ -21,7 +22,7 @@ from .utils import *
 
 def index(request):
     most_purchased_books = Book.objects.values('isbn', 'title', 'price') \
-        .annotate(total_quantity=Sum('bookinorder__count')).order_by('-total_quantity')
+                               .annotate(total_quantity=Sum('bookinorder__count')).order_by('-total_quantity')[:10]
     if request.user.is_authenticated:
         current_customer = Customer.objects.get(username=request.user.username)
         recommended_books = Book.objects.exclude(bookinorder__order_number__username=current_customer) \
@@ -301,14 +302,20 @@ def book_detail(request, isbn_str):
                     return render_book_detail(request, isbn_str)
                 if 'very_useful' in request.POST:
                     comment.very_useful_count += 1
+                    comment.usefulness_score = \
+                        (comment.very_useful_count * 2 + comment.useful_count + comment.useless_count * -1) / 3.0
                     comment.save()
                     return render_book_detail(request, isbn_str)
                 elif 'useful' in request.POST:
                     comment.useful_count += 1
+                    comment.usefulness_score = \
+                        (comment.very_useful_count + comment.useful_count + comment.useless_count) / 3.0
                     comment.save()
                     return render_book_detail(request, isbn_str)
                 elif 'useless' in request.POST:
                     comment.useless_count += 1
+                    comment.usefulness_score = \
+                        (comment.very_useful_count + comment.useful_count + comment.useless_count) / 3.0
                     comment.save()
                     return render_book_detail(request, isbn_str)
                 elif 'trust' in request.POST:
@@ -321,3 +328,61 @@ def book_detail(request, isbn_str):
                     return render_book_detail(request, isbn_str)
     else:
         return render_book_detail(request, isbn_str)
+
+
+@method_decorator(staff_member_required(login_url='admin:login'), name='dispatch')
+class AdminUserStatView(views.View):
+    def get(self, request, *args, **kwargs):
+        return render(request, 'admin_user_stat_view.html')
+
+    def post(self, request, *args, **kwargs):
+        try:
+            number = int(request.POST.get('number'))
+            if number <= 0:
+                return HttpResponse('Please enter a positive integer')
+        except ValueError:
+            return HttpResponse('Please enter a positive integer')
+        context = {}
+        if 'top_trusted' in request.POST:
+            customers = (Customer.objects.values(
+                'username', 'first_name', 'last_name', 'address', 'phone_number', 'banned')) \
+                            .annotate(Count('t_trusted_username')).order_by('-t_trusted_username__count')[:number]
+            context['customers'] = customers
+            context['trust'] = 1
+        elif 'top_useful' in request.POST:
+            customers = Customer.objects.values(
+                'username', 'first_name', 'last_name', 'address', 'phone_number', 'banned') \
+                            .annotate(usefulness_score=Avg('comment__usefulness_score')) \
+                            .order_by('-usefulness_score')[:number]
+            context['customers'] = customers
+            context['useful'] = 1
+        return render(request, 'admin_user_stat_view.html', context=context)
+
+
+@method_decorator(staff_member_required(login_url='admin:login'), name='dispatch')
+class AdminBookStatView(views.View):
+    def get(self, request, *args, **kwargs):
+        return render(request, 'admin_book_stat_view.html')
+
+    def post(self, request, *args, **kwargs):
+        try:
+            number = int(request.POST.get('number'))
+            if number <= 0:
+                return HttpResponse('Please enter a positive integer')
+        except ValueError:
+            return HttpResponse('Please enter a positive integer')
+        context = {}
+        # if 'top_trusted' in request.POST:
+        #     customers = (Customer.objects.values(
+        #         'username', 'first_name', 'last_name', 'address', 'phone_number', 'banned')) \
+        #                     .annotate(Count('t_trusted_username')).order_by('-t_trusted_username__count')[:number]
+        #     context['customers'] = customers
+        #     context['trust'] = 1
+        # elif 'top_useful' in request.POST:
+        #     customers = Customer.objects.values(
+        #         'username', 'first_name', 'last_name', 'address', 'phone_number', 'banned') \
+        #                     .annotate(usefulness_score=Avg('comment__usefulness_score')) \
+        #                     .order_by('-usefulness_score')[:number]
+        #     context['customers'] = customers
+        #     context['useful'] = 1
+        return render(request, 'admin_book_stat_view.html', context=context)

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load round_float %}
+<head>
+    <title>User Stat</title>
+</head>
+<body>
+<a href="{% url 'logout' %}">Logout</a>
+<h1>Hello, admin!</h1>
+<h3>You can generate user reports here</h3>
+<form method="post">
+    {% csrf_token %}
+    <label>
+        Enter the number of users wanted: <input type="text" name="number"><br>
+    </label>
+    Generate report for:
+    <input type="submit" name="top_trusted" value="Top trusted users">
+    <input type="submit" name="top_useful" value="Top useful users">
+</form>
+<ul>
+    {% for customer in customers %}
+        <li>
+            <strong>Username: </strong>{{ customer.username }}&emsp;
+            <strong>Name: </strong>{{ customer.first_name }} {{ customer.last_name }}&emsp;
+            <strong>Address: </strong>{{ customer.address }}&emsp;
+            <strong>Phone Number: </strong>{{ customer.phone_number }}&emsp;
+            <br>
+            <strong>Banned from posting comments: </strong>{{ customer.banned }}&emsp;
+            {% if trust %}
+                <strong>Trust score: </strong>{{ customer.t_trusted_username__count }}&emsp;
+            {% elif useful %}
+                <strong>Usefulness score: </strong>
+                {{ customer.usefulness_score|round_float:3 }}&emsp;
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
+</body>
+</html>

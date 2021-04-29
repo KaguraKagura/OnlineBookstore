@@ -12,5 +12,7 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('sign_up', views.sign_up, name='sign_up'),
     path('book/<str:isbn_str>', views.book_detail, name='book_detail'),
-    path('degree_of_separation_search', views.DegreeOfSeparationSearchView.as_view(), name='degree_of_separation_search')
+    path('degree_of_separation_search', views.DegreeOfSeparationSearchView.as_view(), name='degree_of_separation_search'),
+    path('admin_user_report', views.AdminUserStatView.as_view(), name='admin_user_report'),
+    path('admin_book_report', views.AdminBookStatView.as_view(), name='admin_user_report'),
 ]
