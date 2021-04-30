@@ -10,6 +10,7 @@ from .models import *
 from .forms import *
 
 
+# render shopping cart for a authenticated user
 def render_shopping_cart(request):
     current_customer = Customer.objects.get(username=request.user.username)
     books_in_shopping_cart = ShoppingCart.objects.filter(username=current_customer) \
@@ -24,7 +25,7 @@ def render_shopping_cart(request):
     return render(request, 'shopping_cart.html', context=context)
 
 
-# helper
+# create or update the trust status
 def change_customer_trust_status(current_customer, target_customer, action):
     with transaction.atomic():
         if action == 'trust':
@@ -47,7 +48,7 @@ def change_customer_trust_status(current_customer, target_customer, action):
                 pass
 
 
-# helper
+# render a book, plus the trust status if the user authenticated
 def render_book_detail(request, isbn_str):
     try:
         book = Book.objects.get(isbn=isbn_str)
@@ -84,10 +85,9 @@ def render_book_detail(request, isbn_str):
     return render(request, 'book_detail.html', context=context)
 
 
-# helper
+# make book search queries
 def render_book_search_result(request, form):
     data = form.cleaned_data
-    # clean data for query
     order_by = ''
     author = ''
     to_pop = []
@@ -143,7 +143,7 @@ def render_book_search_result(request, form):
     return render(request, 'book_search_result.html', context=context)
 
 
-# helper
+# render ask question page
 def render_ask_a_question(request):
     current_customer = Customer.objects.get(username=request.user.username)
     previous_questions = Question.objects.filter(username=current_customer)

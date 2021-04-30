@@ -1,26 +1,19 @@
-from django import views
-from django.shortcuts import render, HttpResponse, redirect
-from django.utils.decorators import method_decorator
-from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib import messages
-from django.http import Http404
-from django.db import transaction, connection
-from django.db.models import Q, F, Sum, Avg, Count
-from django.forms.models import model_to_dict
-from django.utils.safestring import mark_safe
-from django.views import generic
-from django.views.generic import RedirectView
-from django.template import RequestContext
-from django.contrib.auth.models import User
-from django.contrib.auth.mixins import LoginRequiredMixin
 from datetime import datetime, timedelta
+
+from django import views
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.db import connection
+from django.db.models import Sum, Count
+from django.shortcuts import redirect
+from django.utils.decorators import method_decorator
 
 from .utils import *
 
 
 # Create your views here.
 
+# displays recommended books on the index page
 def index(request):
     most_purchased_books = Book.objects.values('isbn', 'title', 'price') \
                                .annotate(total_quantity=Sum('bookinorder__count')).order_by('-total_quantity')[:10]
@@ -35,17 +28,18 @@ def index(request):
     return render(request, 'index.html', context=context)
 
 
+# get and clean search criteria
 def book_search(request):
     blank_form = BookSearchForm()
     blank_context = {'form': blank_form}
 
     if request.method == 'POST':
         form = BookSearchForm(request.POST)
+        # good search
         if form.is_valid():
-            # good search
             return render_book_search_result(request, form)
+        # errors
         else:
-            # errors
             messages.error(request, "Error:")
             for _, error in form.errors.items():
                 messages.error(request, error)
@@ -58,6 +52,7 @@ def book_search(request):
 def shopping_cart(request):
     current_customer = Customer.objects.get(username=request.user.username)
     if request.method == 'POST':
+        # increase or decrease item count in the shopping cart
         if 'quantity_action' in request.POST:
             action = request.POST.get('quantity_action')
             isbn = request.POST.get('isbn')
@@ -72,24 +67,24 @@ def shopping_cart(request):
                 book_in_cart.count += 1
                 book_in_cart.save()
             return render_shopping_cart(request)
+        # checkout
         elif 'check_out' in request.POST:
-            # buy stuff
             books_in_shopping_cart = ShoppingCart.objects.filter(username=current_customer) \
                 .values('isbn', 'count', title=F('isbn__title'), price=F('isbn__price'), stock=F('isbn__stock_level'))
             quantity_too_large = False
+            # check if stock is enough
             for book in books_in_shopping_cart:
-                # stock not enough
                 if book['count'] > book['stock']:
                     quantity_too_large = True
-                    messages.error(request,
-                                   mark_safe(f'Unable to checkout:<br>&emsp;'
-                                             f'Book "{book["title"]}" has only {book["stock"]} in stock<br>'))
+                    messages.error(request, mark_safe(f'Unable to checkout:<br>&emsp;'
+                                                      f'Book "{book["title"]}" has only {book["stock"]} in stock<br>'))
             if quantity_too_large:
                 return render_shopping_cart(request)
             else:
                 total_price = 0
                 for book in books_in_shopping_cart:
                     total_price += book['price'] * book['count']
+                # atomically create an order and decrease stock
                 with transaction.atomic():
                     order = BookOrder.objects.create(username=current_customer, total_price=total_price)
                     for book in books_in_shopping_cart:
@@ -110,6 +105,7 @@ def shopping_cart(request):
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class MyAccountView(views.View):
     def get(self, request, *args, **kwargs):
+        # displays customer's own info, comments, and trusted/untrusted customers
         customer = Customer.objects.get(username=self.request.user.username)
         comments = Comment.objects.filter(username=customer)
         trusts = TrustedCustomer.objects.filter(username=customer)
@@ -124,6 +120,7 @@ class MyAccountView(views.View):
 
     def post(self, request, *args, **kwargs):
         current_customer = Customer.objects.get(username=request.user.username)
+        # trust or untrust a customer on MyAccount page
         if 'trust' in request.POST:
             target_customer = Customer.objects.get(username=request.POST.get('trust'))
             change_customer_trust_status(current_customer, target_customer, 'trust')
@@ -137,6 +134,7 @@ class MyAccountView(views.View):
 
 @login_required(login_url='login')
 def my_order(request):
+    # get all orders of a customer
     customer = Customer.objects.get(username=request.user.username)
     orders = BookOrder.objects.filter(username=customer)
     orders_value = list(orders.values())
@@ -151,6 +149,7 @@ def my_order(request):
 
 @login_required(login_url='login')
 def my_question(request):
+    # displays customer's questions and answers
     current_customer = Customer.objects.get(username=request.user.username)
     form = CustomerQuestionForm(request.POST)
     if request.method == 'POST':
@@ -168,20 +167,20 @@ def my_question(request):
         return render_ask_a_question(request)
 
 
+# creates a new customer
 def sign_up(request):
     blank_form = SignUpForm()
     blank_context = {'form': blank_form}
-
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
             try:
+                # if customer query succeeds without exception, it means username already exists
                 Customer.objects.get(username=form.cleaned_data['username'])
-                # username already exists
                 messages.info(request, 'User name is already taken, please choose another one<br>')
                 return render(request, 'sign_up.html', context=blank_context)
             except Customer.DoesNotExist:
-                # good username, can register
+                # available username, can sign up
                 data = form.cleaned_data
                 new_customer = Customer.objects.create_user(
                     username=data['username'],
@@ -194,12 +193,14 @@ def sign_up(request):
                 messages.info(request, mark_safe('Signed up successfully! You can login now<br>'))
                 return render(request, 'sign_up.html', context=blank_context)
         else:
-            messages.error(request, 'Error: Unknown error, please refresh the page<br>')
+            # invalid fields entered
+            messages.error(request, mark_safe('Invalid item entered, please check again<br>'))
             return render(request, 'sign_up.html', context=blank_context)
     else:
         return render(request, 'sign_up.html', context=blank_context)
 
 
+# special search page for degrees of separation
 class DegreeOfSeparationSearchView(views.View):
     form = DegreeOfSeparationSearchForm()
     context = {'form': form}
@@ -213,7 +214,7 @@ class DegreeOfSeparationSearchView(views.View):
         degree = int(request.POST.get('degree_of_separation'))
         context = {'first_name_searched_on': firstname,
                    'last_name_searched_on': lastname}
-
+        # raw SQL for authors with degree 1 relationship
         with connection.cursor() as cursor:
             cursor.execute('SELECT A2.first_name, A2.last_name '
                            'FROM home_author A1 join home_author A2 on A1.isbn_id = A2.isbn_id '
@@ -221,7 +222,6 @@ class DegreeOfSeparationSearchView(views.View):
                            'AND A2.first_name != %s AND A2.last_name != %s',
                            [firstname, lastname, firstname, lastname])
             raw_separated_authors = cursor.fetchall()
-
         if degree == 1:
             context['degree'] = 1
         elif degree == 2:
@@ -238,13 +238,15 @@ class DegreeOfSeparationSearchView(views.View):
                     return result
 
             temp_raw_author = []
+            # for degree 2 search, only keep authors who have no degree 1 relationship among each other
             [temp_raw_author.append(raw_author) for raw_author in raw_separated_authors
              if not degree1Exists(raw_author[0], raw_author[1], firstname, lastname)]
             raw_separated_authors = temp_raw_author
             context['degree'] = 2
-
+        # turn raw result into a dict with meaningful keys
         context['authors'] = [dict(zip(['first_name', 'last_name'], raw_author))
                               for raw_author in raw_separated_authors]
+        # get the books the target authors write
         for author in context['authors']:
             author['books'] = Book.objects.filter(author__first_name=author['first_name'],
                                                   author__last_name=author['last_name']).order_by('title')
@@ -255,7 +257,7 @@ def book_detail(request, isbn_str):
     if request.method == 'POST':
         if request.user.is_authenticated:
             current_customer = Customer.objects.get(username=request.user.username)
-            # Add to shopping cart clicked
+            # add to shopping cart
             if 'add_to_shopping_cart' in request.POST:
                 try:
                     # book added before, increase the count by 1
@@ -271,19 +273,20 @@ def book_detail(request, isbn_str):
                                                                      count=1)
                     shopping_cart_item.save()
                     return redirect(shopping_cart)
-            # Submit comment clicked
+            # comment submitted
             elif 'comment_textarea' in request.POST:
+                # banned customer
                 if current_customer.banned is True:
                     messages.error(request, mark_safe("You are banned and cannot write a commented<br>"))
                     return render_book_detail(request, isbn_str)
                 try:
-                    # current user already commented
+                    # current user already commented, cannot comment again
                     Comment.objects.get(username=current_customer, isbn=isbn_str)
                     messages.error(request, mark_safe(
                         "One comment per user per book -- You have already commented on this book<br>"))
                     return render_book_detail(request, isbn_str)
                 except Comment.DoesNotExist:
-                    # current user has never commented
+                    # current user has never commented, can proceed
                     new_comment = Comment.objects.create(username=current_customer,
                                                          isbn=Book.objects.get(isbn=isbn_str),
                                                          score=request.POST.get('scores'),
@@ -291,6 +294,7 @@ def book_detail(request, isbn_str):
                     new_comment.save()
                     messages.info(request, mark_safe("Your comment is successfully recorded<br>"))
                     return render_book_detail(request, isbn_str)
+            # comment rated
             else:
                 try:
                     comment = Comment.objects.get(id=request.POST.get('comment_id'))
@@ -331,6 +335,7 @@ def book_detail(request, isbn_str):
         return render_book_detail(request, isbn_str)
 
 
+# manager only page for customer stat
 @method_decorator(staff_member_required(login_url='admin:login'), name='dispatch')
 class AdminUserStatView(views.View):
     def get(self, request, *args, **kwargs):
@@ -360,6 +365,7 @@ class AdminUserStatView(views.View):
         return render(request, 'admin_user_stat_view.html', context=context)
 
 
+# manager only page for book stat
 @method_decorator(staff_member_required(login_url='admin:login'), name='dispatch')
 class AdminBookStatView(views.View):
     def get(self, request, *args, **kwargs):
@@ -373,6 +379,7 @@ class AdminBookStatView(views.View):
         except ValueError:
             return HttpResponse('Please enter a positive integer')
         context = {}
+        # recent quarter
         one_quarter_ago = datetime.now() - timedelta(days=90)
         print(one_quarter_ago)
         if 'top_books' in request.POST:
