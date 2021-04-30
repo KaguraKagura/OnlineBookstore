@@ -17,6 +17,8 @@ books/authors/publishers, generating report on trustworthiness/usefulness of cus
 
 - Install mysql-server for your system and start the service
 - Create a database \<my_db> with credentials \<my_user> and \<my_password> and grant all privileges to \<my_user>
+- python 3.8
+- pip
 
 ### Then
 
