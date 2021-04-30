@@ -6,7 +6,7 @@ This is a bookstore website focusing on backend using Django and mysql. The fron
 looks is plain.
 
 This website has canonical features of an online bookstore such as book recommendation, book search, rating books, making
-comments, rating comments, adding to shopping cart, making orders. Customers can also trust/untrust other customers.
+comments, rating comments, adding to shopping cart, making orders. Customers can also trust/untrust other customers, and ask questions to the managers.
 
 In addition, managers have the features of adding new book, managing stock and price, generating report on popular
 books/authors/publishers, generating report on trustworthiness/usefulness of customers
@@ -29,4 +29,5 @@ books/authors/publishers, generating report on trustworthiness/usefulness of cus
 6. `python3 manage.py migrate` to let Django create needed tables in the database
 7. `python3 manage.py runserver` to start the Django development server and follow the URL in the console to see the
   website (default url on Linux is http://127.0.0.1:8000/)
-8. Visit http://127.0.0.1:8000/admin and login using credentials entered in step 5 to see manager features
+8. Visit http://127.0.0.1:8000/admin and login using credentials entered in step 5 to see most manager features
+9. Visit http://127.0.0.1:8000/home/admin_book_report and http://127.0.0.1:8000/home/admin_book_report to see manager book report and user report
