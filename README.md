@@ -16,7 +16,7 @@ books/authors/publishers, generating report on trustworthiness/usefulness of cus
 ### Prerequisite
 
 - Install mysql-server for your system and start the service
-- Create a database \<my_db> with credentials \<my_user> and \<my_password>
+- Create a database \<my_db> with credentials \<my_user> and \<my_password> and grant all privileges to \<my_user>
 
 ### Then
 
