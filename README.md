@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a bookstore website focusing on backend using Django and mysql. The frontend does not have a framework, so the
+This is a toy bookstore website focusing on backend using Django and mysql. The frontend does not have a framework, so the
 looks is plain.
 
 This website has canonical features of an online bookstore such as book recommendation, book search, rating books, making
