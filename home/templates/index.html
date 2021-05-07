@@ -27,26 +27,25 @@
             </ul>
         {% endfor %}
     {% endif %}
-    <h3>
-        Recommended Books
-        {% if user.is_authenticated %}
-            (Book you haven't bought):
+    {% if user.is_authenticated %}
+        <h3>
+            Recommended Books
+            (Books you haven't bought):
+        </h3>
+        {% if not recommended_books %}
+            Currently there are no books in the store.
+        {% else %}
+            {% for book in recommended_books %}
+                <ul>
+                    <li>
+                        <a href="{% url 'book_detail' book.isbn %}">
+                            <strong>Title: </strong>{{ book.title }}&emsp;
+                            <strong>ISBN: </strong>{{ book.isbn }}&emsp;
+                            <strong>Price: </strong>${{ book.price }}&emsp;
+                        </a>
+                    </li>
+                </ul>
+            {% endfor %}
         {% endif %}
-    </h3>
-    {% if not recommended_books %}
-        Currently there are no books in the store.
-    {% else %}
-        {% for book in recommended_books %}
-            <ul>
-                <li>
-                    <a href="{% url 'book_detail' book.isbn %}">
-                        <strong>Title: </strong>{{ book.title }}&emsp;
-                        <strong>ISBN: </strong>{{ book.isbn }}&emsp;
-                        <strong>Price: </strong>${{ book.price }}&emsp;
-                    </a>
-                </li>
-            </ul>
-        {% endfor %}
     {% endif %}
-
 {% endblock %}

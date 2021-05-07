@@ -381,7 +381,6 @@ class AdminBookStatView(views.View):
         context = {}
         # recent quarter
         one_quarter_ago = datetime.now() - timedelta(days=90)
-        print(one_quarter_ago)
         if 'top_books' in request.POST:
             books = BookInOrder.objects.filter(order_number__order_time__gt=one_quarter_ago) \
                         .values('isbn', 'isbn__title').annotate(count=Sum('count')) \

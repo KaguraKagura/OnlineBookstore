@@ -22,15 +22,14 @@
 <ul>
     {% for result in results %}
         <li>
-
             {% if result_type == 'books' %}
                 <a href="{% url 'book_detail' result.isbn %}">
                     <strong>ISBN: </strong>{{ result.isbn }}
-                    <strong>Title: </strong>{{ result.title }}
+                    <strong>Title: </strong>{{ result.isbn__title }}
                 </a>
             {% elif result_type == 'authors' %}
-                <strong>Firstname: </strong>{{ result.first_name }}
-                <strong>Lastname: </strong>{{ result.last_name }}
+                <strong>Firstname: </strong>{{ result.author__first_name }}
+                <strong>Lastname: </strong>{{ result.author__last_name }}
             {% elif result_type == 'publishers' %}
                 <strong>Publisher: </strong>{{ result.publisher }}
             {% endif %}
@@ -41,7 +40,6 @@
                 0
             {% endif %}
         </li>
-
     {% endfor %}
 </ul>
 </body>

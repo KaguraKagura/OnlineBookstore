@@ -30,7 +30,7 @@
                 <strong>Trust score: </strong>{{ customer.t_trusted_username__count }}&emsp;
             {% elif useful %}
                 <strong>Usefulness score: </strong>
-                {{ customer.usefulness_score|round_float:3 }}&emsp;
+                {{ customer.usefulness_score }}&emsp;
             {% endif %}
         </li>
     {% endfor %}

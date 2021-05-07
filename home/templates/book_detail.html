@@ -76,50 +76,48 @@
             {% if not comments %}
                 Currently there are no comments on this book. You could be the first!
             {% else %}
-                {% with trust_list=trust_status|list_index:0 %}
-                    {% for comment in comments %}
-                        <hr>
-                        <ul>
-                            <li>
-                                <strong>Commented by:</strong> {{ comment.username }}
-                                <strong>on</strong> {{ comment.time }}
-                            </li>
-                            <li>
-                                <strong>Score:</strong> {{ comment.score }}
-                            </li>
-                            <li>
-                                <strong>Comment:</strong> {{ comment.comment_text }}
-                            </li>
-                        </ul>
-                        <strong>Rate this comment:</strong><br>
-                        {% if not user.is_authenticated %}
-                            Please login/sign up to rate comment<br>
-                        {% else %}
-                            <form method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name='comment_id' value="{{ comment.id }}">
-                                <input type="submit" name='very_useful'
-                                       value="very useful: {{ comment.very_useful_count }}">
-                                <input type="submit" name='useful' value="useful: {{ comment.useful_count }}">
-                                <input type="submit" name='useless' value="useless: {{ comment.useless_count }}">
-                                <br><br>
-                                {% with status=trust_list|list_index:comment.id %}
-                                    {% if status == 'self' %}
-                                        This is your <strong>own</strong> comment.
+                {% for comment in comments %}
+                    <hr>
+                    <ul>
+                        <li>
+                            <strong>Commented by:</strong> {{ comment.username }}
+                            <strong>on</strong> {{ comment.time }}
+                        </li>
+                        <li>
+                            <strong>Score:</strong> {{ comment.score }}
+                        </li>
+                        <li>
+                            <strong>Comment:</strong> {{ comment.comment_text }}
+                        </li>
+                    </ul>
+                    <strong>Rate this comment:</strong><br>
+                    {% if not user.is_authenticated %}
+                        Please login/sign up to rate comment<br>
+                    {% else %}
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name='comment_id' value="{{ comment.id }}">
+                            <input type="submit" name='very_useful'
+                                   value="very useful: {{ comment.very_useful_count }}">
+                            <input type="submit" name='useful' value="useful: {{ comment.useful_count }}">
+                            <input type="submit" name='useless' value="useless: {{ comment.useless_count }}">
+                            <br><br>
+                            {% with status=trust_status|list_index:0|list_index:comment.id %}
+                                {% if status == 'self' %}
+                                    This is your <strong>own</strong> comment.
+                                {% else %}
+                                    {% if status %}
+                                        You currently <strong>{{ status }}</strong> this comment's user<br>
                                     {% else %}
-                                        {% if status %}
-                                            You currently <strong>{{ status }}</strong> this comment's user<br>
-                                        {% else %}
-                                            You haven't trusted or untrusted this comment's user<br>
-                                        {% endif %}
-                                        <input type="submit" name='trust' value="Trust this user">
-                                        <input type="submit" name='untrust' value="Untrust this user">
+                                        You haven't trusted or untrusted this comment's user<br>
                                     {% endif %}
-                                {% endwith %}
-                            </form>
-                        {% endif %}
-                    {% endfor %}
-                {% endwith %}
+                                    <input type="submit" name='trust' value="Trust this user">
+                                    <input type="submit" name='untrust' value="Untrust this user">
+                                {% endif %}
+                            {% endwith %}
+                        </form>
+                    {% endif %}
+                {% endfor %}
             {% endif %}
         </div>
     {% else %}
